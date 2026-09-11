@@ -1,0 +1,75 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    ports:
+      # 1:1 on purpose. Next's default 3000 is left free for other projects,
+      # and an identical inside/outside port keeps AUTH_URL correct in both.
+      - '3001:3001'
+    env_file:
+      - .env
+    environment:
+      # Override the host-machine URLs from .env with in-network service names.
+      DATABASE_URL: postgresql://helpdesk:helpdesk@db:5432/helpdesk?schema=public
+      SHADOW_DATABASE_URL: postgresql://helpdesk:helpdesk@db:5432/helpdesk_shadow?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_URL: http://localhost:3001
+      HELPDESK_AUTO_SEED: 'true'
+      WATCHPACK_POLLING: 'true'
+    volumes:
+      # Bind-mount source for hot reload, but keep container-built artefacts:
+      # node_modules is platform-specific and src/generated is built at image
+      # build time, so both are masked with anonymous volumes.
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - /app/src/generated
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    # Survive a reboot / daemon restart, but respect a deliberate `docker stop`
+    # (which `always` would not). NOTE: docker.service is socket-activated on
+    # this machine, so these come back when the daemon is first touched after
+    # boot, not at boot itself -- see README.
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: helpdesk
+      POSTGRES_USER: helpdesk
+      POSTGRES_PASSWORD: helpdesk
+    ports:
+      # Exposed so you can run `npm run dev` / prisma studio on the host too.
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U helpdesk -d helpdesk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:

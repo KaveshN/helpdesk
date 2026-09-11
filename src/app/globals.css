@@ -1,0 +1,295 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Naming follows the shadcn/Radix convention (background/foreground/card/
+   muted/accent/border/ring) because it is widely understood and extends
+   cleanly. Colours are OKLCH: perceptually uniform, so every neutral at the
+   same lightness genuinely looks the same weight, and the dark theme is a
+   considered second palette rather than an inversion.
+
+   COLOUR POLICY (borrowed from Linear, and it matters more here than it does
+   there): the chrome is near-monochrome and carries a single accent. Red,
+   amber and green are RESERVED for meaning -- SLA breach, risk level, ticket
+   status. If the furniture is colourful, a P1 breach stops reading as urgent.
+--------------------------------------------------------------------------- */
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --background: oklch(0.978 0.003 264);
+    --foreground: oklch(0.21 0.02 265);
+
+    --card: oklch(1 0 0);
+    --card-foreground: var(--foreground);
+    /* One step in from --card, for table headers and inset panels. */
+    --subtle: oklch(0.968 0.004 264);
+
+    --muted: oklch(0.55 0.018 265);
+    --faint: oklch(0.68 0.015 265);
+
+    --border: oklch(0.918 0.006 265);
+    --border-strong: oklch(0.855 0.008 265);
+    --input: oklch(0.995 0 0);
+
+    --accent: oklch(0.52 0.204 276);
+    --accent-hover: oklch(0.46 0.2 276);
+    --accent-foreground: oklch(0.99 0 0);
+    --accent-subtle: oklch(0.958 0.024 276);
+    --ring: oklch(0.52 0.204 276 / 0.45);
+
+    --success: oklch(0.52 0.13 155);
+    --success-subtle: oklch(0.955 0.035 155);
+    --warning: oklch(0.58 0.13 72);
+    --warning-subtle: oklch(0.962 0.045 82);
+    --danger: oklch(0.53 0.2 25);
+    --danger-subtle: oklch(0.955 0.03 25);
+
+    --shadow-card: 0 1px 2px oklch(0.21 0.02 265 / 0.05);
+    --shadow-pop: 0 8px 24px oklch(0.21 0.02 265 / 0.1);
+
+    --sidebar-width: 15.5rem;
+  }
+
+  /* System preference drives the theme; no toggle to keep in sync. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+
+      --background: oklch(0.165 0.012 265);
+      --foreground: oklch(0.955 0.005 265);
+
+      --card: oklch(0.202 0.013 265);
+      --card-foreground: var(--foreground);
+      --subtle: oklch(0.238 0.014 265);
+
+      --muted: oklch(0.68 0.016 265);
+      --faint: oklch(0.55 0.016 265);
+
+      --border: oklch(0.278 0.015 265);
+      --border-strong: oklch(0.35 0.018 265);
+      --input: oklch(0.238 0.014 265);
+
+      --accent: oklch(0.66 0.18 277);
+      --accent-hover: oklch(0.72 0.17 277);
+      --accent-foreground: oklch(0.16 0.02 265);
+      --accent-subtle: oklch(0.28 0.06 277);
+      --ring: oklch(0.66 0.18 277 / 0.5);
+
+      --success: oklch(0.72 0.15 158);
+      --success-subtle: oklch(0.29 0.06 158);
+      --warning: oklch(0.78 0.14 78);
+      --warning-subtle: oklch(0.31 0.06 78);
+      --danger: oklch(0.68 0.18 24);
+      --danger-subtle: oklch(0.3 0.08 24);
+
+      --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+      --shadow-pop: 0 12px 32px oklch(0 0 0 / 0.55);
+    }
+  }
+}
+
+/* `inline` so the generated utilities resolve the runtime variables above,
+   which is what lets one set of classes serve both themes. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-subtle: var(--subtle);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger: var(--danger);
+  --color-danger-subtle: var(--danger-subtle);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    /* 14px base: dense enough for tables, still readable in prose. */
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Tabular figures everywhere numbers are compared down a column. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent-subtle);
+  }
+}
+
+@layer components {
+  /* NOTE (Tailwind 4): `@apply` takes real utilities only -- it cannot apply
+     one of these classes to another. Shared bases are grouped selectors. */
+
+  .card {
+    @apply rounded-xl border bg-card;
+    box-shadow: var(--shadow-card);
+  }
+
+  .panel-title {
+    @apply text-[0.8125rem] font-semibold tracking-tight text-foreground;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[0.8125rem] font-medium text-foreground;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    @apply w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground
+      transition placeholder:text-faint
+      focus:border-accent focus:outline-none
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2
+      text-[0.8125rem] font-medium whitespace-nowrap transition
+      disabled:cursor-not-allowed disabled:opacity-55;
+  }
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+  .btn-secondary {
+    @apply border bg-card text-foreground;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--subtle);
+    border-color: var(--border-strong);
+  }
+  .btn-ghost {
+    @apply text-muted;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--subtle);
+    color: var(--foreground);
+  }
+  .btn-danger {
+    @apply border;
+    border-color: color-mix(in oklch, var(--danger) 35%, transparent);
+    background-color: var(--danger-subtle);
+    color: var(--danger);
+  }
+  .btn-danger:hover:not(:disabled) {
+    border-color: var(--danger);
+  }
+
+  .field-error {
+    @apply mt-1.5 text-xs;
+    color: var(--danger);
+  }
+
+  /* Tables: sticky header, tight rows, quiet separators. */
+  .data-table {
+    @apply w-full text-left text-[0.8125rem];
+  }
+  .data-table thead th {
+    @apply sticky top-0 z-10 border-b bg-subtle px-4 py-2.5 text-[0.6875rem]
+      font-semibold tracking-wider text-muted uppercase;
+  }
+  .data-table tbody td {
+    @apply border-b px-4 py-2.5 align-middle;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .data-table tbody tr {
+    @apply transition-colors;
+  }
+  .data-table tbody tr:hover {
+    background-color: var(--subtle);
+  }
+
+  /* Status chip: a coloured dot carries the meaning, the chip stays neutral. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
+      text-[0.75rem] font-medium whitespace-nowrap;
+  }
+
+  .link {
+    @apply font-medium underline decoration-border underline-offset-2 transition;
+  }
+  .link:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+  }
+
+  /* Key/value rows in detail sidebars. */
+  .meta-row {
+    @apply flex items-baseline justify-between gap-3 py-1.5 text-[0.8125rem];
+  }
+  .meta-row dt {
+    @apply shrink-0 text-muted;
+  }
+  .meta-row dd {
+    @apply text-right text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Fluid page gutter: tight on a phone, comfortable on a wide monitor. */
+  .page-x {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  /* Ultra-wide guard. Content fills the window, but a 4K monitor should not
+     stretch a table to 3800px -- that is unreadable in a different way. */
+  .page-max {
+    @apply mx-auto w-full max-w-[120rem];
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}

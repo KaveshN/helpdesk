@@ -1,0 +1,1466 @@
+// Multi-tenant Help Desk platform.
+//
+// TENANCY RULE: every operational table carries `helpDeskGroupId`. It is nullable
+// ONLY on platform-global entities (User, HelpDeskGroup, AuditLog) and on
+// KnowledgeArticle, where NULL means "published platform-wide".
+// The scoping rule is enforced at the query layer in src/lib/db/scoped.ts —
+// see GROUP_SCOPED_MODELS there, which must stay in sync with this file.
+//
+// CONFIGURABILITY RULE: anything an admin must be able to change without a code
+// deploy (statuses, priorities, types, categories, SLAs, calendars, templates)
+// is a TABLE, not an enum. Enums are used only for semantics the code branches
+// on -- e.g. StatusCategory tells the dashboard that a group's custom
+// "Awaiting Vendor" status counts as PENDING.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums: fixed semantics only
+// ---------------------------------------------------------------------------
+
+enum PlatformRole {
+  SUPER_ADMIN
+}
+
+enum GroupRole {
+  HD_ADMIN
+  AGENT
+  OBSERVER
+}
+
+/// How much an OBSERVER in a group may see. Brief §5 says observer visibility is
+/// "configurable at group and ticket level" -- this is the group-level half.
+enum ObserverScope {
+  /// Only tickets the observer is explicitly a watcher on.
+  WATCHED_ONLY
+  /// Every ticket in the group (still read-only, still no internal notes).
+  ALL_TICKETS
+}
+
+/// Fixed semantic buckets that group-defined statuses map onto.
+enum StatusCategory {
+  NEW
+  OPEN
+  PENDING
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+/// Fixed semantic kinds that group-defined ticket types map onto.
+enum TicketTypeKind {
+  INCIDENT
+  SERVICE_REQUEST
+  PROBLEM
+  QUERY
+}
+
+enum TicketSource {
+  WEB
+  EMAIL
+  PHONE
+  CHAT
+  API
+  WORKFLOW
+}
+
+enum TicketEventType {
+  CREATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  TYPE_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  CATEGORY_CHANGED
+  COMMENT_ADDED
+  ATTACHMENT_ADDED
+  WATCHER_ADDED
+  WATCHER_REMOVED
+  SLA_APPLIED
+  SLA_WARNED
+  SLA_BREACHED
+  REOPENED
+  RESOLVED
+  CLOSED
+  ARTICLE_LINKED
+  WORKFLOW_APPLIED
+  ESCALATED
+  MERGED
+}
+
+enum ChangeEventType {
+  CREATED
+  UPDATED
+  SUBMITTED
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  SCHEDULED
+  IMPLEMENTATION_STARTED
+  IMPLEMENTATION_COMPLETED
+  IMPLEMENTATION_FAILED
+  ROLLED_BACK
+  CANCELLED
+  CAB_ASSIGNED
+  RISK_CHANGED
+  TICKET_LINKED
+  WORKFLOW_APPLIED
+}
+
+enum ChangeStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  ROLLED_BACK
+  CANCELLED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  ABSTAINED
+}
+
+enum CabApprovalMode {
+  ALL_MEMBERS
+  QUORUM
+  ANY_MEMBER
+  CHAIR_ONLY
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NotificationEvent {
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  TICKET_STATUS_CHANGED
+  TICKET_COMMENT_ADDED
+  TICKET_RESOLVED
+  TICKET_CLOSED
+  TICKET_REOPENED
+  SLA_RESPONSE_WARNING
+  SLA_RESPONSE_BREACH
+  SLA_RESOLUTION_WARNING
+  SLA_RESOLUTION_BREACH
+  AFTER_HOURS_AUTO_REPLY
+  EMAIL_ACKNOWLEDGEMENT
+  CHANGE_SUBMITTED
+  CHANGE_APPROVAL_REQUESTED
+  CHANGE_APPROVED
+  CHANGE_REJECTED
+  SCHEDULED_REPORT
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+  SUPPRESSED
+}
+
+enum WorkflowTrigger {
+  TICKET_CREATED
+  TICKET_UPDATED
+  TICKET_STATUS_CHANGED
+  TICKET_ASSIGNED
+  TICKET_COMMENT_ADDED
+  SLA_WARNING
+  SLA_BREACH
+  CHANGE_SUBMITTED
+  CHANGE_APPROVED
+  CHANGE_REJECTED
+  CHANGE_SCHEDULED
+}
+
+enum ConditionOperator {
+  EQUALS
+  NOT_EQUALS
+  CONTAINS
+  NOT_CONTAINS
+  IN
+  NOT_IN
+  GREATER_THAN
+  LESS_THAN
+  IS_EMPTY
+  IS_NOT_EMPTY
+}
+
+enum WorkflowActionType {
+  ASSIGN_TO_USER
+  ASSIGN_ROUND_ROBIN
+  SET_PRIORITY
+  SET_STATUS
+  SET_CATEGORY
+  SET_SLA_POLICY
+  ADD_WATCHER
+  SEND_NOTIFICATION
+  ESCALATE_TO_USER
+  REQUIRE_APPROVAL
+  ADD_INTERNAL_NOTE
+}
+
+enum ReportType {
+  TICKET_VOLUME
+  SLA_PERFORMANCE
+  AGENT_PERFORMANCE
+  TICKET_AGEING
+  TREND_ANALYSIS
+  CSAT
+  CHANGE_SUMMARY
+}
+
+enum ReportFormat {
+  CSV
+  XLSX
+  PDF
+  HTML
+}
+
+enum ReportRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum InboundEmailStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum TargetMetric {
+  TICKETS_RESOLVED
+  FIRST_RESPONSE_SLA
+  RESOLUTION_SLA
+  CSAT_AVERAGE
+  REOPEN_RATE
+}
+
+// ---------------------------------------------------------------------------
+// Platform-global entities
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  /// Entra ID `oid` claim. Null for dev-login and email-only requesters.
+  entraObjectId  String?       @unique
+  email          String        @unique
+  name           String
+  jobTitle       String?
+  phone          String?
+  /// Platform-wide role. NULL for everyone except Super Administrators.
+  platformRole   PlatformRole?
+  isActive       Boolean       @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  memberships          HelpDeskMembership[]
+  requestedTickets     Ticket[]                  @relation("TicketRequester")
+  assignedTickets      Ticket[]                  @relation("TicketAssignee")
+  createdTickets       Ticket[]                  @relation("TicketCreatedBy")
+  comments             TicketComment[]
+  attachments          TicketAttachment[]
+  watching             TicketWatcher[]           @relation("WatcherUser")
+  watchersAdded        TicketWatcher[]           @relation("WatcherAddedBy")
+  ticketEvents         TicketEvent[]
+  auditLogs            AuditLog[]
+  requestedChanges     ChangeRequest[]           @relation("ChangeRequester")
+  ownedChanges         ChangeRequest[]           @relation("ChangeOwner")
+  changeApprovals      ChangeApproval[]
+  changeEvents         ChangeEvent[]
+  cabMemberships       CabMember[]
+  ownedArticles        KnowledgeArticle[]
+  articleVersions      KnowledgeArticleVersion[]
+  articleLinks         ArticleTicketLink[]
+  reportDefinitions    ReportDefinition[]
+  targets              AgentTarget[]
+  achievements         AgentAchievement[]
+  csatResponses        CsatResponse[]
+
+  @@index([isActive])
+}
+
+model HelpDeskGroup {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  /// Short uppercase key used as the ticket reference prefix, e.g. "ITHD".
+  key         String  @unique
+  name        String  @unique
+  description String?
+  /// Dedicated inbound address for email-to-ticket (Phase 6).
+  inboundEmailAddress String? @unique
+  /// Reply-to / from address for outbound notifications.
+  outboundEmailAddress String?
+  /// IANA zone, e.g. "Africa/Johannesburg" or "Africa/Nairobi".
+  timeZone    String  @default("Africa/Johannesburg")
+  /// Monotonic per-group ticket counter. Incremented via an atomic
+  /// UPDATE ... RETURNING inside the ticket-creation transaction.
+  ticketSequence Int  @default(0)
+  /// Separate counter for change requests, so changes and tickets have
+  /// independent series: ITHD-000001 (ticket) and ITHD-C-000001 (change).
+  changeSequence Int  @default(0)
+  /// Group-level default for what OBSERVER members can see.
+  observerScope ObserverScope @default(WATCHED_ONLY)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships       HelpDeskMembership[]
+  ticketTypes       TicketType[]
+  priorities        Priority[]
+  statuses          TicketStatus[]
+  categories        Category[]
+  subCategories     SubCategory[]
+  slaPolicies       SlaPolicy[]
+  slaTargets        SlaTarget[]
+  calendars         Calendar[]
+  workingHours      WorkingHours[]
+  holidays          Holiday[]
+  afterHoursConfig  AfterHoursConfig?
+  afterHoursContacts AfterHoursContact[]
+  workflows         Workflow[]
+  workflowConditions WorkflowCondition[]
+  workflowActions   WorkflowAction[]
+  notificationTemplates NotificationTemplate[]
+  notificationLogs  NotificationLog[]
+  tickets           Ticket[]
+  ticketComments    TicketComment[]
+  ticketAttachments TicketAttachment[]
+  ticketWatchers    TicketWatcher[]
+  ticketEvents      TicketEvent[]
+  changeTypes       ChangeType[]
+  changeCategories  ChangeCategory[]
+  changeRiskLevels  ChangeRiskLevel[]
+  changeRequests    ChangeRequest[]
+  changeApprovals   ChangeApproval[]
+  changeEvents      ChangeEvent[]
+  cabs              Cab[]
+  cabMembers        CabMember[]
+  cabRiskLevels     CabRiskLevel[]
+  articles          KnowledgeArticle[]
+  articleCategories ArticleCategory[]
+  articleLinks      ArticleTicketLink[]
+  reportDefinitions ReportDefinition[]
+  scheduledReports  ScheduledReport[]
+  reportRuns        ReportRun[]
+  inboundEmails     InboundEmail[]
+  agentTargets      AgentTarget[]
+  achievements      Achievement[]
+  agentAchievements AgentAchievement[]
+  csatResponses     CsatResponse[]
+  auditLogs         AuditLog[]
+
+  @@index([isActive])
+}
+
+/// Per-group role assignment. SUPER_ADMIN is platform-wide (User.platformRole)
+/// and deliberately has no row here. This join table is what lets one person be
+/// an AGENT in "IT Help Desk" and an HD_ADMIN in "Kenya Help Desk".
+model HelpDeskMembership {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  userId          String    @db.Uuid
+  helpDeskGroupId String    @db.Uuid
+  role            GroupRole
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, helpDeskGroupId])
+  @@index([helpDeskGroupId, role])
+  @@index([userId, isActive])
+}
+
+/// Platform-wide audit trail for administrative changes (cross-cutting req §8).
+/// actorEmail is denormalised so the trail survives user deletion.
+model AuditLog {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Dotted convention: "<entity>.<action>", e.g. "sla_policy.update".
+  action          String
+  entityType      String
+  entityId        String?
+  actorUserId     String?  @db.Uuid
+  actorEmail      String
+  /// NULL for platform-level actions (e.g. creating a help desk group).
+  helpDeskGroupId String?  @db.Uuid
+  before          Json?
+  after           Json?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+
+  actor User?          @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  group HelpDeskGroup? @relation(fields: [helpDeskGroupId], references: [id], onDelete: SetNull)
+
+  @@index([helpDeskGroupId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Per-group ticket taxonomy (admin-configurable)
+// ---------------------------------------------------------------------------
+
+model TicketType {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String         @db.Uuid
+  name            String
+  kind            TicketTypeKind
+  description     String?
+  sortOrder       Int            @default(0)
+  isDefault       Boolean        @default(false)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  group       HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  tickets     Ticket[]
+  slaPolicies SlaPolicy[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model Priority {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  /// 1 = most urgent. Drives sort order and SLA target lookup.
+  level           Int
+  colour          String?
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group      HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  tickets    Ticket[]
+  slaTargets SlaTarget[]
+
+  @@unique([helpDeskGroupId, name])
+  @@unique([helpDeskGroupId, level])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model TicketStatus {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String         @db.Uuid
+  name            String
+  category        StatusCategory
+  /// When true, SLA clocks pause while a ticket sits in this status.
+  pausesSla       Boolean        @default(false)
+  colour          String?
+  sortOrder       Int            @default(0)
+  isDefault       Boolean        @default(false)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  group   HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model Category {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group         HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  subCategories SubCategory[]
+  tickets       Ticket[]
+  slaPolicies   SlaPolicy[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model SubCategory {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Denormalised from Category so the tenancy filter is uniform across tables.
+  helpDeskGroupId String   @db.Uuid
+  categoryId      String   @db.Uuid
+  name            String
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  category Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tickets  Ticket[]
+
+  @@unique([categoryId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+// ---------------------------------------------------------------------------
+// Per-group SLA + calendar
+// ---------------------------------------------------------------------------
+
+model SlaPolicy {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  description     String?
+  /// Optional narrowing conditions. NULL means "applies to any".
+  ticketTypeId    String?  @db.Uuid
+  categoryId      String?  @db.Uuid
+  /// When true, SLA clocks only advance inside the calendar's working hours.
+  businessHoursOnly Boolean @default(true)
+  calendarId      String?  @db.Uuid
+  /// Lower number wins when several policies match a ticket.
+  matchOrder      Int      @default(100)
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group      HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticketType TicketType?   @relation(fields: [ticketTypeId], references: [id], onDelete: SetNull)
+  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  calendar   Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  targets    SlaTarget[]
+  tickets    Ticket[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive, matchOrder])
+}
+
+model SlaTarget {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId   String   @db.Uuid
+  slaPolicyId       String   @db.Uuid
+  priorityId        String   @db.Uuid
+  responseMinutes   Int
+  resolutionMinutes Int
+  /// Percent of the target elapsed before a warning notification fires.
+  warningThresholdPct Int    @default(80)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  policy   SlaPolicy     @relation(fields: [slaPolicyId], references: [id], onDelete: Cascade)
+  priority Priority      @relation(fields: [priorityId], references: [id], onDelete: Cascade)
+
+  @@unique([slaPolicyId, priorityId])
+  @@index([helpDeskGroupId])
+}
+
+model Calendar {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  timeZone        String
+  /// Free-text region label, e.g. "South Africa", "Kenya".
+  region          String?
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group        HelpDeskGroup      @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  workingHours WorkingHours[]
+  holidays     Holiday[]
+  slaPolicies  SlaPolicy[]
+  afterHours   AfterHoursConfig[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// One row per weekday. Times are minutes-from-midnight in the calendar's own
+/// time zone -- avoids storing wall-clock times as UTC timestamps, which breaks
+/// across DST and across the SA/Kenya offset difference.
+model WorkingHours {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  calendarId      String   @db.Uuid
+  /// 0 = Sunday ... 6 = Saturday (matches JS Date#getDay).
+  dayOfWeek       Int
+  isWorkingDay    Boolean  @default(true)
+  startMinute     Int      @default(480)
+  endMinute       Int      @default(1020)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  calendar Calendar      @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, dayOfWeek])
+  @@index([helpDeskGroupId])
+}
+
+model Holiday {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  calendarId      String   @db.Uuid
+  name            String
+  /// Date-only; the calendar's time zone determines the local day.
+  date            DateTime @db.Date
+  /// When true, applies every year on the same month/day.
+  isRecurring     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  calendar Calendar      @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, date])
+  @@index([helpDeskGroupId, date])
+}
+
+model AfterHoursConfig {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @unique @db.Uuid
+  isEnabled       Boolean  @default(false)
+  calendarId      String?  @db.Uuid
+  /// Message sent to requesters who raise a ticket outside working hours.
+  autoReplyMessage String?
+  /// Minutes to wait before escalating an out-of-hours critical ticket.
+  escalationDelayMinutes Int @default(30)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup       @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  calendar Calendar?           @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  contacts AfterHoursContact[]
+}
+
+model AfterHoursContact {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId    String   @db.Uuid
+  afterHoursConfigId String   @db.Uuid
+  name               String
+  role               String?
+  phone              String
+  email              String?
+  /// 1 = called first.
+  escalationOrder    Int      @default(1)
+  isEmergencyContact Boolean  @default(false)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  group  HelpDeskGroup    @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  config AfterHoursConfig @relation(fields: [afterHoursConfigId], references: [id], onDelete: Cascade)
+
+  @@index([helpDeskGroupId, escalationOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Per-group workflow rules (rule set, not a visual builder -- see brief §4)
+// ---------------------------------------------------------------------------
+
+model Workflow {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String          @db.Uuid
+  name            String
+  description     String?
+  trigger         WorkflowTrigger
+  /// Lower number evaluates first.
+  sortOrder       Int             @default(100)
+  /// Stop evaluating later workflows once this one matches.
+  stopOnMatch     Boolean         @default(false)
+  /// ALL conditions must match (AND). OR is expressed with the IN operator.
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  group      HelpDeskGroup       @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  conditions WorkflowCondition[]
+  actions    WorkflowAction[]
+  cabs       Cab[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, trigger, isActive, sortOrder])
+}
+
+model WorkflowCondition {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String            @db.Uuid
+  workflowId      String            @db.Uuid
+  /// Dotted ticket field path, e.g. "priority.level", "category.name".
+  field           String
+  operator        ConditionOperator
+  /// Comparison operand. Lists are comma-separated for IN / NOT_IN.
+  value           String?
+  createdAt       DateTime          @default(now())
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  workflow Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([helpDeskGroupId])
+}
+
+model WorkflowAction {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String             @db.Uuid
+  workflowId      String             @db.Uuid
+  type            WorkflowActionType
+  /// Action-specific payload, e.g. { "userId": "..." } or { "priorityId": "..." }.
+  params          Json               @default("{}")
+  sortOrder       Int                @default(0)
+  createdAt       DateTime           @default(now())
+
+  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  workflow Workflow      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, sortOrder])
+  @@index([helpDeskGroupId])
+}
+
+// ---------------------------------------------------------------------------
+// Per-group notifications
+// ---------------------------------------------------------------------------
+
+model NotificationTemplate {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String              @db.Uuid
+  event           NotificationEvent
+  channel         NotificationChannel
+  subject         String
+  /// Handlebars-style {{ticket.reference}} placeholders.
+  bodyTemplate    String
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  group HelpDeskGroup     @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  logs  NotificationLog[]
+
+  @@unique([helpDeskGroupId, event, channel])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model NotificationLog {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String              @db.Uuid
+  templateId      String?             @db.Uuid
+  ticketId        String?             @db.Uuid
+  event           NotificationEvent
+  channel         NotificationChannel
+  recipient       String
+  subject         String?
+  status          NotificationStatus  @default(QUEUED)
+  error           String?
+  sentAt          DateTime?
+  createdAt       DateTime            @default(now())
+
+  group    HelpDeskGroup         @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  template NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  ticket   Ticket?               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([helpDeskGroupId, createdAt])
+  @@index([ticketId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Tickets
+// ---------------------------------------------------------------------------
+
+model Ticket {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String       @db.Uuid
+  /// Human-facing handle, e.g. "ITHD-000123". Unique platform-wide.
+  reference       String       @unique
+  /// The per-group counter value behind `reference`.
+  sequence        Int
+  subject         String
+  description     String
+  typeId          String       @db.Uuid
+  priorityId      String       @db.Uuid
+  statusId        String       @db.Uuid
+  categoryId      String?      @db.Uuid
+  subCategoryId   String?      @db.Uuid
+  requesterId     String       @db.Uuid
+  assigneeId      String?      @db.Uuid
+  createdById     String       @db.Uuid
+  source          TicketSource @default(WEB)
+
+  // --- SLA state (Phase 2 populates these; Phase 1 leaves them null) ---
+  slaPolicyId        String?   @db.Uuid
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  firstRespondedAt   DateTime?
+  responseBreached   Boolean   @default(false)
+  resolutionBreached Boolean   @default(false)
+  /// Accumulated paused time, so a paused status doesn't consume SLA budget.
+  slaPausedMinutes   Int       @default(0)
+  slaPausedAt        DateTime?
+
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  reopenCount Int       @default(0)
+
+  /// Email threading (Phase 6).
+  emailMessageId String?
+  emailThreadId  String?
+
+  /// Optional cross-reference to a change request (an incident citing the
+  /// change that fixes it). NOT unique and NOT required: change management is
+  /// its own module with its own lifecycle -- see model ChangeRequest.
+  changeRequestId String? @db.Uuid
+  parentTicketId  String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group         HelpDeskGroup  @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  type          TicketType     @relation(fields: [typeId], references: [id])
+  priority      Priority       @relation(fields: [priorityId], references: [id])
+  status        TicketStatus   @relation(fields: [statusId], references: [id])
+  category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  requester     User           @relation("TicketRequester", fields: [requesterId], references: [id])
+  assignee      User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  slaPolicy     SlaPolicy?     @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  changeRequest ChangeRequest? @relation(fields: [changeRequestId], references: [id], onDelete: SetNull)
+  parentTicket  Ticket?        @relation("TicketHierarchy", fields: [parentTicketId], references: [id], onDelete: SetNull)
+  childTickets  Ticket[]       @relation("TicketHierarchy")
+
+  watchers         TicketWatcher[]
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
+  events           TicketEvent[]
+  notificationLogs NotificationLog[]
+  articleLinks     ArticleTicketLink[]
+  inboundEmails    InboundEmail[]
+  csatResponses    CsatResponse[]
+
+  @@unique([helpDeskGroupId, sequence])
+  @@index([helpDeskGroupId, statusId])
+  @@index([helpDeskGroupId, assigneeId, statusId])
+  @@index([helpDeskGroupId, requesterId])
+  @@index([helpDeskGroupId, createdAt])
+  @@index([helpDeskGroupId, resolutionDueAt])
+  @@index([emailThreadId])
+  @@index([changeRequestId])
+}
+
+/// Observers / watchers / followers: read-only visibility at ticket level.
+model TicketWatcher {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  ticketId        String   @db.Uuid
+  userId          String   @db.Uuid
+  addedById       String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  group   HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket  Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user    User          @relation("WatcherUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User?         @relation("WatcherAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([ticketId, userId])
+  @@index([helpDeskGroupId, userId])
+}
+
+model TicketComment {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String       @db.Uuid
+  ticketId        String       @db.Uuid
+  authorId        String       @db.Uuid
+  body            String
+  /// Internal notes are hidden from requesters and observers.
+  isInternal      Boolean      @default(false)
+  source          TicketSource @default(WEB)
+  emailMessageId  String?
+  editedAt        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  group       HelpDeskGroup      @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User               @relation(fields: [authorId], references: [id])
+  attachments TicketAttachment[]
+
+  @@index([ticketId, createdAt])
+  @@index([helpDeskGroupId])
+}
+
+model TicketAttachment {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  ticketId        String   @db.Uuid
+  commentId       String?  @db.Uuid
+  fileName        String
+  mimeType        String
+  sizeBytes       Int
+  /// Object-store key or local path; never the file bytes themselves.
+  storageKey      String
+  uploadedById    String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  group      HelpDeskGroup  @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket     Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment    TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation(fields: [uploadedById], references: [id])
+
+  @@index([ticketId])
+  @@index([helpDeskGroupId])
+}
+
+/// Per-ticket activity timeline. Distinct from AuditLog, which tracks
+/// administrative configuration changes.
+model TicketEvent {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String          @db.Uuid
+  ticketId        String          @db.Uuid
+  actorId         String?         @db.Uuid
+  type            TicketEventType
+  field           String?
+  oldValue        String?
+  newValue        String?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+
+  group  HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([helpDeskGroupId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Change management + CAB (Phase 5)
+// ---------------------------------------------------------------------------
+
+model ChangeType {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  description     String?
+  /// Skip CAB approval entirely (pre-approved / standard changes).
+  isPreApproved   Boolean  @default(false)
+  sortOrder       Int      @default(0)
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group   HelpDeskGroup   @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changes ChangeRequest[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// Change categories are the change module's own taxonomy -- deliberately NOT
+/// the ticket `Category` table. Sharing it would couple the two modules'
+/// configuration, which is exactly what keeping change management separate is
+/// meant to avoid.
+model ChangeCategory {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group   HelpDeskGroup   @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changes ChangeRequest[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// Per-group risk levels (brief §7: "risk levels per group"). A table rather
+/// than an enum because each help desk decides its own risk bands and, more
+/// importantly, which of them force a change through a CAB.
+model ChangeRiskLevel {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  /// 1 = highest risk. Drives ordering and CAB routing.
+  level           Int
+  description     String?
+  colour          String?
+  /// When true, a change at this risk level cannot be approved without a CAB.
+  requiresCab     Boolean  @default(true)
+  /// Lead time the group expects between submission and planned start.
+  minimumNoticeHours Int   @default(0)
+  isDefault       Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup   @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changes  ChangeRequest[]
+  cabLinks CabRiskLevel[]
+
+  @@unique([helpDeskGroupId, name])
+  @@unique([helpDeskGroupId, level])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// A change request. Its own module: own numbering series, own lifecycle, own
+/// taxonomy, own approvals. `ticketId` is an OPTIONAL cross-reference so an
+/// incident can cite the change that fixes it -- it is not a parent.
+model ChangeRequest {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String       @db.Uuid
+  /// e.g. "ITHD-C-000042". Unique platform-wide.
+  reference       String       @unique
+  /// Value from HelpDeskGroup.changeSequence, independent of tickets.
+  sequence        Int
+  title           String
+  description     String
+  changeTypeId    String       @db.Uuid
+  changeCategoryId String?     @db.Uuid
+  riskLevelId     String       @db.Uuid
+  status          ChangeStatus @default(DRAFT)
+  requesterId     String       @db.Uuid
+  ownerId         String?      @db.Uuid
+  cabId           String?      @db.Uuid
+
+  impactAssessment   String?
+  implementationPlan String?
+  rollbackPlan       String?
+  testPlan           String?
+  /// Post-implementation review notes.
+  outcomeNotes       String?
+  plannedStartAt     DateTime?
+  plannedEndAt       DateTime?
+  actualStartAt      DateTime?
+  actualEndAt        DateTime?
+  submittedAt        DateTime?
+  decidedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group          HelpDeskGroup    @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changeType     ChangeType       @relation(fields: [changeTypeId], references: [id])
+  changeCategory ChangeCategory?  @relation(fields: [changeCategoryId], references: [id], onDelete: SetNull)
+  riskLevel      ChangeRiskLevel  @relation(fields: [riskLevelId], references: [id])
+  requester      User             @relation("ChangeRequester", fields: [requesterId], references: [id])
+  owner          User?            @relation("ChangeOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  cab            Cab?             @relation(fields: [cabId], references: [id], onDelete: SetNull)
+  approvals      ChangeApproval[]
+  events         ChangeEvent[]
+  linkedTickets  Ticket[]
+
+  @@unique([helpDeskGroupId, sequence])
+  @@index([helpDeskGroupId, status])
+  @@index([helpDeskGroupId, plannedStartAt])
+  @@index([helpDeskGroupId, riskLevelId])
+}
+
+model ChangeApproval {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String           @db.Uuid
+  changeRequestId String           @db.Uuid
+  approverId      String           @db.Uuid
+  decision        ApprovalDecision @default(PENDING)
+  comment         String?
+  /// Copied from CabMember at request time: a later CAB membership change must
+  /// not retroactively alter whether a past approval counted towards quorum.
+  isVoting        Boolean          @default(true)
+  isChair         Boolean          @default(false)
+  decidedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  group         HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  approver      User          @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@unique([changeRequestId, approverId])
+  @@index([helpDeskGroupId, decision])
+  @@index([approverId, decision])
+}
+
+/// Lifecycle timeline for one change, separate from the platform AuditLog
+/// (which records administrative configuration changes).
+model ChangeEvent {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String          @db.Uuid
+  changeRequestId String          @db.Uuid
+  actorId         String?         @db.Uuid
+  type            ChangeEventType
+  field           String?
+  oldValue        String?
+  newValue        String?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+
+  group         HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  actor         User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([changeRequestId, createdAt])
+  @@index([helpDeskGroupId, createdAt])
+}
+
+/// Change Advisory Board -- scoped per help desk group.
+model Cab {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String          @db.Uuid
+  name            String
+  description     String?
+  approvalMode    CabApprovalMode @default(QUORUM)
+  /// Required approvals when approvalMode is QUORUM.
+  quorum          Int             @default(2)
+  /// Any single rejection ends the change, rather than waiting for every vote.
+  rejectionIsFinal Boolean        @default(true)
+  /// Optional workflow this CAB is attached to (brief §5: CAB-to-workflow).
+  workflowId      String?         @db.Uuid
+  isDefault       Boolean         @default(false)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  group      HelpDeskGroup   @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  workflow   Workflow?       @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  members    CabMember[]
+  changes    ChangeRequest[]
+  riskLevels CabRiskLevel[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// Which risk levels route to which CAB. A join table because risk levels are
+/// now per-group rows rather than enum values.
+model CabRiskLevel {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  cabId           String   @db.Uuid
+  riskLevelId     String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  group     HelpDeskGroup   @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  cab       Cab             @relation(fields: [cabId], references: [id], onDelete: Cascade)
+  riskLevel ChangeRiskLevel @relation(fields: [riskLevelId], references: [id], onDelete: Cascade)
+
+  @@unique([cabId, riskLevelId])
+  @@index([helpDeskGroupId])
+  @@index([riskLevelId])
+}
+
+model CabMember {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  cabId           String   @db.Uuid
+  userId          String   @db.Uuid
+  isChair         Boolean  @default(false)
+  isVoting        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  cab   Cab           @relation(fields: [cabId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cabId, userId])
+  @@index([helpDeskGroupId])
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge base (Phase 3)
+// ---------------------------------------------------------------------------
+
+model ArticleCategory {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// NULL = platform-global article category.
+  helpDeskGroupId String?  @db.Uuid
+  name            String
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group    HelpDeskGroup?     @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  articles KnowledgeArticle[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+/// helpDeskGroupId NULL + isGlobal true => visible to every group.
+model KnowledgeArticle {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId   String?       @db.Uuid
+  isGlobal          Boolean       @default(false)
+  title             String
+  slug              String        @unique
+  /// Sanitised HTML rendered from the editor.
+  contentHtml       String
+  /// Tiptap/ProseMirror JSON document -- the editable source of truth.
+  contentJson       Json?
+  excerpt           String?
+  articleCategoryId String?       @db.Uuid
+  tags              String[]      @default([])
+  status            ArticleStatus @default(DRAFT)
+  ownerId           String        @db.Uuid
+  version           Int           @default(1)
+  publishedAt       DateTime?
+  viewCount         Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  group           HelpDeskGroup?            @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  articleCategory ArticleCategory?          @relation(fields: [articleCategoryId], references: [id], onDelete: SetNull)
+  owner           User                      @relation(fields: [ownerId], references: [id])
+  versions        KnowledgeArticleVersion[]
+  ticketLinks     ArticleTicketLink[]
+
+  @@index([helpDeskGroupId, status])
+  @@index([isGlobal, status])
+  @@index([tags])
+}
+
+model KnowledgeArticleVersion {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  articleId   String   @db.Uuid
+  version     Int
+  title       String
+  contentHtml String
+  contentJson Json?
+  changeNote  String?
+  editedById  String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  article  KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  editedBy User             @relation(fields: [editedById], references: [id])
+
+  @@unique([articleId, version])
+}
+
+model ArticleTicketLink {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  articleId       String   @db.Uuid
+  ticketId        String   @db.Uuid
+  linkedById      String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  group    HelpDeskGroup    @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  article  KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  ticket   Ticket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  linkedBy User             @relation(fields: [linkedById], references: [id])
+
+  @@unique([articleId, ticketId])
+  @@index([helpDeskGroupId])
+}
+
+// ---------------------------------------------------------------------------
+// Reporting (Phase 4)
+// ---------------------------------------------------------------------------
+
+model ReportDefinition {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String     @db.Uuid
+  name            String
+  description     String?
+  type            ReportType
+  /// Saved filter set, e.g. { "statusCategories": ["OPEN"], "days": 30 }.
+  filters         Json       @default("{}")
+  createdById     String     @db.Uuid
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  group     HelpDeskGroup     @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  createdBy User              @relation(fields: [createdById], references: [id])
+  schedules ScheduledReport[]
+  runs      ReportRun[]
+
+  @@unique([helpDeskGroupId, name])
+  @@index([helpDeskGroupId, isActive])
+}
+
+model ScheduledReport {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId    String       @db.Uuid
+  reportDefinitionId String       @db.Uuid
+  /// Standard 5-field cron expression, evaluated in the group's time zone.
+  cronExpression     String
+  recipients         String[]     @default([])
+  format             ReportFormat @default(CSV)
+  isActive           Boolean      @default(true)
+  lastRunAt          DateTime?
+  nextRunAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  group      HelpDeskGroup    @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  definition ReportDefinition @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  runs       ReportRun[]
+
+  @@index([helpDeskGroupId, isActive])
+  @@index([isActive, nextRunAt])
+}
+
+model ReportRun {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId    String          @db.Uuid
+  reportDefinitionId String          @db.Uuid
+  scheduledReportId  String?         @db.Uuid
+  status             ReportRunStatus @default(PENDING)
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  rowCount           Int?
+  /// Object-store key of the generated artefact.
+  artifactKey        String?
+  error              String?
+  createdAt          DateTime        @default(now())
+
+  group      HelpDeskGroup    @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  definition ReportDefinition @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  schedule   ScheduledReport? @relation(fields: [scheduledReportId], references: [id], onDelete: SetNull)
+
+  @@index([helpDeskGroupId, createdAt])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Email-to-ticket (Phase 6)
+// ---------------------------------------------------------------------------
+
+model InboundEmail {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  /// NULL until the poller resolves the recipient address to a group.
+  helpDeskGroupId String?            @db.Uuid
+  messageId       String             @unique
+  inReplyTo       String?
+  fromEmail       String
+  fromName        String?
+  toEmail         String
+  subject         String?
+  bodyText        String?
+  bodyHtml        String?
+  hasAttachments  Boolean            @default(false)
+  status          InboundEmailStatus @default(PENDING)
+  error           String?
+  ticketId        String?            @db.Uuid
+  receivedAt      DateTime
+  processedAt     DateTime?
+  createdAt       DateTime           @default(now())
+
+  group  HelpDeskGroup? @relation(fields: [helpDeskGroupId], references: [id], onDelete: SetNull)
+  ticket Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([status, receivedAt])
+  @@index([helpDeskGroupId, receivedAt])
+  @@index([inReplyTo])
+}
+
+// ---------------------------------------------------------------------------
+// Gamification + CSAT (Phase 7 -- nice to have)
+// ---------------------------------------------------------------------------
+
+model AgentTarget {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String       @db.Uuid
+  userId          String       @db.Uuid
+  metric          TargetMetric
+  targetValue     Float
+  periodStart     DateTime     @db.Date
+  periodEnd       DateTime     @db.Date
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  group HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([helpDeskGroupId, userId, metric, periodStart])
+  @@index([helpDeskGroupId, periodStart])
+}
+
+model Achievement {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  name            String
+  description     String?
+  icon            String?
+  /// Rule payload, e.g. { "metric": "TICKETS_RESOLVED", "threshold": 100 }.
+  criteria        Json     @default("{}")
+  points          Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group  HelpDeskGroup      @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  awards AgentAchievement[]
+
+  @@unique([helpDeskGroupId, name])
+}
+
+model AgentAchievement {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  achievementId   String   @db.Uuid
+  userId          String   @db.Uuid
+  awardedAt       DateTime @default(now())
+
+  group       HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  achievement Achievement   @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([achievementId, userId])
+  @@index([helpDeskGroupId, userId])
+}
+
+model CsatResponse {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  ticketId        String   @db.Uuid
+  /// 1-5.
+  rating          Int
+  comment         String?
+  respondentId    String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  group      HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket     Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  respondent User?         @relation(fields: [respondentId], references: [id], onDelete: SetNull)
+
+  @@unique([ticketId, respondentId])
+  @@index([helpDeskGroupId, createdAt])
+}
