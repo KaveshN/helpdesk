@@ -270,6 +270,48 @@ Tables adapt rather than merely scrolling: low-priority columns drop out at each
 breakpoint (`hidden md:table-cell`), and on a phone the status and priority
 chips fold underneath the subject so the row stays useful.
 
+### Identity, mail and the leaderboard
+
+**Every person who signs in is an Entra identity.** `User.entraObjectId` is the
+durable key — a UPN can be reassigned to a different person, an `oid` cannot.
+The directory is searched on demand through Microsoft Graph rather than synced,
+so there is no mirrored copy to go stale, and a `User` row is only persisted
+once someone is actually given a role.
+
+**External correspondents are `Contact` rows, not users.** Someone who emails
+the mailbox from outside the tenant can be a ticket requester but can never
+authenticate. Keeping them out of `User` means "list all users" still means
+"list all staff", which is what makes an access review meaningful. A CHECK
+constraint enforces that a ticket has exactly one of `requesterId` or
+`contactId`, and that `requesterKind` agrees with whichever is set.
+
+**Mail runs through Exchange Online** (`src/lib/graph/`), app-only client
+credentials because the poller has no signed-in user. Threading precedence is
+bracketed reference, then Graph `conversationId`, then a new ticket; delivery
+uses Graph's delta query so each poll asks only for what changed. Replies leave
+**as the shared mailbox**, so the requester's answer comes back to the help desk
+rather than an agent's personal inbox, and are committed as a `TicketComment`
+plus a QUEUED `OutboundEmail` in one transaction — if Exchange is down the
+agent's words are not lost.
+
+> **Scope the mail permissions.** `Mail.ReadWrite` as an application permission
+> grants access to _every_ mailbox in the tenant. Restrict it with an Exchange
+> `New-ApplicationAccessPolicy` to the help desk mailboxes, or this app becomes
+> a tenant-wide mail reader. The command is in `src/lib/graph/client.ts`.
+
+Auto-replies, bounces and mail from the mailbox to itself are dropped before
+they can raise a ticket — an out-of-office answering our acknowledgement, which
+we then acknowledge, fills a queue in minutes.
+
+**The leaderboard is quality-weighted on purpose.** A leaderboard tells agents
+what the organisation values, and they optimise for exactly what it measures.
+Ranking on volume produces cherry-picking and premature closure, so the default
+scoring blends priority-weighted resolutions, SLA attainment and CSAT, with
+reopened tickets subtracting more than the resolution earned. Agents below a
+minimum ticket count are listed but unranked, so one lucky five-star ticket
+cannot top the board. Every component is shown next to the rank — a score nobody
+can decompose is a score nobody trusts. Weights are per-group configuration.
+
 ### Audit
 
 Every administrative change writes an `AuditLog` row with before/after diffs,

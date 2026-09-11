@@ -8,6 +8,8 @@ import { StatTile } from '@/components/ui/stat-tile';
 import { Pill } from '@/components/ui/pill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { LeaderboardPanel } from '@/components/leaderboard-panel';
+import { getLeaderboard } from '@/lib/leaderboard/service';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Dashboard' };
@@ -52,9 +54,10 @@ function Breakdown({
 export default async function DashboardPage() {
   const { actor, group } = await requireSessionContext();
 
-  const [summary, recent] = await Promise.all([
+  const [summary, recent, leaderboard] = await Promise.all([
     dashboardSummary(actor, group),
     listTickets(actor, group, ticketFilterSchema.parse({ view: 'open', pageSize: 8 })),
+    getLeaderboard(actor, group),
   ]);
 
   const canCreate = can(actor, 'ticket:create', group.helpDeskGroupId);
@@ -168,6 +171,7 @@ export default async function DashboardPage() {
           </section>
 
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+            {leaderboard ? <LeaderboardPanel view={leaderboard} /> : null}
             <section className="card p-4">
               <h2 className="panel-title mb-3">By status</h2>
               <Breakdown rows={summary.byStatus} />

@@ -116,6 +116,23 @@ dark mode.
 - Shared pieces already exist: `PageHeader`, `FilterTabs`, `Pagination`,
   `StatTile`, `EmptyState`, `NoPermission`, `ActionForm`.
 
+## Identity, mail and leaderboard invariants
+
+11. **Every sign-in is an Entra identity.** `entraObjectId` is the key, not
+    email or UPN. External correspondents are `Contact` rows and can never
+    authenticate. A ticket has exactly one of `requesterId`/`contactId` — a
+    CHECK constraint enforces it; resolve them via
+    `resolveRequester()` in `src/lib/tickets/requester.ts`, never by hand.
+12. **Mail leaves as the shared mailbox**, never as the agent, so replies come
+    back to the help desk. Replies commit as comment + QUEUED OutboundEmail in
+    one transaction, then deliver; never send inside the transaction.
+13. **Graph mail permissions are tenant-wide** until an Exchange application
+    access policy scopes them. Say so whenever the topic comes up.
+14. **The leaderboard is quality-weighted deliberately.** Do not "simplify" it
+    to tickets-closed — `tests/leaderboard.test.ts` asserts that a high-volume
+    agent with reopens and poor CSAT loses to a careful one. That test is the
+    specification, not an implementation detail.
+
 ## House style
 
 Types always; `zod` at every boundary; `pino` via `src/lib/logger.ts` (ESLint

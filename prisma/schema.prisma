@@ -247,6 +247,27 @@ enum ReportRunStatus {
   FAILED
 }
 
+/// How a leaderboard period is bounded.
+enum LeaderboardPeriod {
+  WEEK
+  MONTH
+  QUARTER
+}
+
+enum OutboundEmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+/// Where a ticket's requester identity came from.
+enum RequesterKind {
+  /// An Entra ID user in this tenant.
+  USER
+  /// An external correspondent with no Entra identity. Cannot sign in.
+  CONTACT
+}
+
 enum InboundEmailStatus {
   PENDING
   PROCESSED
@@ -268,11 +289,19 @@ enum TargetMetric {
 
 model User {
   id             String        @id @default(uuid(7)) @db.Uuid
-  /// Entra ID `oid` claim. Null for dev-login and email-only requesters.
+  /// Entra ID `oid` claim — the durable identity. Null only for seeded
+  /// dev-login personas; every user added through the admin UI is selected
+  /// from the directory and therefore carries one.
   entraObjectId  String?       @unique
+  /// userPrincipalName at the time of lookup. Display/search only — `oid` is
+  /// the identity, because a UPN can be reassigned to a different person.
+  entraUpn       String?
+  /// When this row was last refreshed from Microsoft Graph.
+  entraSyncedAt  DateTime?
   email          String        @unique
   name           String
   jobTitle       String?
+  department     String?
   phone          String?
   /// Platform-wide role. NULL for everyone except Super Administrators.
   platformRole   PlatformRole?
@@ -303,6 +332,8 @@ model User {
   targets              AgentTarget[]
   achievements         AgentAchievement[]
   csatResponses        CsatResponse[]
+  outboundEmails       OutboundEmail[]
+  linkedContacts       Contact[]
 
   @@index([isActive])
 }
@@ -313,10 +344,21 @@ model HelpDeskGroup {
   key         String  @unique
   name        String  @unique
   description String?
-  /// Dedicated inbound address for email-to-ticket (Phase 6).
+  /// The Exchange Online mailbox this help desk reads and replies from.
+  /// Usually a shared mailbox UPN, e.g. it-helpdesk@contoso.com.
   inboundEmailAddress String? @unique
-  /// Reply-to / from address for outbound notifications.
+  /// Reply-to / from address for outbound notifications. Defaults to the
+  /// inbound mailbox, so a reply lands back in the same thread.
   outboundEmailAddress String?
+  /// Poll the mailbox for new mail and raise tickets from it.
+  mailboxSyncEnabled  Boolean  @default(false)
+  /// Graph delta token, so each poll asks only for what changed.
+  mailboxDeltaLink    String?
+  mailboxLastSyncedAt DateTime?
+  mailboxLastError    String?
+  /// Mail received before this instant is ignored, so enabling sync on an old
+  /// mailbox does not raise a thousand historical tickets.
+  mailboxSyncFrom     DateTime?
   /// IANA zone, e.g. "Africa/Johannesburg" or "Africa/Nairobi".
   timeZone    String  @default("Africa/Johannesburg")
   /// Monotonic per-group ticket counter. Incremented via an atomic
@@ -370,6 +412,9 @@ model HelpDeskGroup {
   scheduledReports  ScheduledReport[]
   reportRuns        ReportRun[]
   inboundEmails     InboundEmail[]
+  outboundEmails    OutboundEmail[]
+  contacts          Contact[]
+  leaderboardConfig LeaderboardConfig?
   agentTargets      AgentTarget[]
   achievements      Achievement[]
   agentAchievements AgentAchievement[]
@@ -456,6 +501,9 @@ model Priority {
   name            String
   /// 1 = most urgent. Drives sort order and SLA target lookup.
   level           Int
+  /// Relative credit on the leaderboard. A P1 costing an afternoon should not
+  /// score the same as a password reset, or ranking rewards cherry-picking.
+  leaderboardWeight Float  @default(1)
   colour          String?
   isDefault       Boolean  @default(false)
   isActive        Boolean  @default(true)
@@ -812,7 +860,11 @@ model Ticket {
   statusId        String       @db.Uuid
   categoryId      String?      @db.Uuid
   subCategoryId   String?      @db.Uuid
-  requesterId     String       @db.Uuid
+  /// Exactly one of requesterId / contactId is set — enforced by a CHECK
+  /// constraint, see the entra_exchange_leaderboard migration.
+  requesterId     String?      @db.Uuid
+  contactId       String?      @db.Uuid
+  requesterKind   RequesterKind @default(USER)
   assigneeId      String?      @db.Uuid
   createdById     String       @db.Uuid
   source          TicketSource @default(WEB)
@@ -851,7 +903,8 @@ model Ticket {
   status        TicketStatus   @relation(fields: [statusId], references: [id])
   category      Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
-  requester     User           @relation("TicketRequester", fields: [requesterId], references: [id])
+  requester     User?          @relation("TicketRequester", fields: [requesterId], references: [id])
+  contact       Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
   assignee      User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy     User           @relation("TicketCreatedBy", fields: [createdById], references: [id])
   slaPolicy     SlaPolicy?     @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
@@ -866,12 +919,14 @@ model Ticket {
   notificationLogs NotificationLog[]
   articleLinks     ArticleTicketLink[]
   inboundEmails    InboundEmail[]
+  outboundEmails   OutboundEmail[]
   csatResponses    CsatResponse[]
 
   @@unique([helpDeskGroupId, sequence])
   @@index([helpDeskGroupId, statusId])
   @@index([helpDeskGroupId, assigneeId, statusId])
   @@index([helpDeskGroupId, requesterId])
+  @@index([helpDeskGroupId, contactId])
   @@index([helpDeskGroupId, createdAt])
   @@index([helpDeskGroupId, resolutionDueAt])
   @@index([emailThreadId])
@@ -914,6 +969,7 @@ model TicketComment {
   ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author      User               @relation(fields: [authorId], references: [id])
   attachments TicketAttachment[]
+  outboundEmails OutboundEmail[]
 
   @@index([ticketId, createdAt])
   @@index([helpDeskGroupId])
@@ -1367,7 +1423,12 @@ model InboundEmail {
   id              String             @id @default(uuid(7)) @db.Uuid
   /// NULL until the poller resolves the recipient address to a group.
   helpDeskGroupId String?            @db.Uuid
+  /// RFC 5322 Message-ID.
   messageId       String             @unique
+  /// Graph's own message id, used to reply in-thread.
+  graphMessageId  String?
+  /// Graph conversationId — the durable thread key.
+  conversationId  String?
   inReplyTo       String?
   fromEmail       String
   fromName        String?
@@ -1389,6 +1450,111 @@ model InboundEmail {
   @@index([status, receivedAt])
   @@index([helpDeskGroupId, receivedAt])
   @@index([inReplyTo])
+  @@index([conversationId])
+}
+
+/// An external correspondent with no Entra identity.
+///
+/// Agents and everyone who signs in are Entra users; a Contact is someone who
+/// emailed the mailbox from outside the tenant. Keeping them out of `User`
+/// means "list all users" still means "list all staff", which is what makes an
+/// access review meaningful. A Contact can never authenticate.
+model Contact {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String   @db.Uuid
+  email           String
+  name            String?
+  phone           String?
+  organisation    String?
+  /// Set when this address later turns out to belong to an Entra user, so
+  /// their history can be reconciled rather than duplicated.
+  linkedUserId    String?  @db.Uuid
+  isBlocked       Boolean  @default(false)
+  firstSeenAt     DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group      HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  linkedUser User?         @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+  tickets    Ticket[]
+
+  @@unique([helpDeskGroupId, email])
+  @@index([helpDeskGroupId, lastSeenAt])
+}
+
+/// Mail sent out of the application: agent replies and auto-acknowledgements.
+/// Separate from NotificationLog, which records event-driven notifications.
+model OutboundEmail {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String              @db.Uuid
+  ticketId        String?             @db.Uuid
+  /// The comment this email was generated from, when an agent replied in-app.
+  commentId       String?             @db.Uuid
+  /// The mailbox it was sent AS — always the group's shared mailbox, so the
+  /// requester's reply comes back to the help desk and not an agent's inbox.
+  fromAddress     String
+  toAddresses     String[]            @default([])
+  ccAddresses     String[]            @default([])
+  subject         String
+  bodyHtml        String
+  /// Graph message id and the RFC 5322 Message-ID, for threading replies.
+  graphMessageId  String?
+  internetMessageId String?
+  conversationId  String?
+  /// The Graph message being replied to, when this is a reply rather than new.
+  inReplyToGraphId String?
+  status          OutboundEmailStatus @default(QUEUED)
+  error           String?
+  attempts        Int                 @default(0)
+  sentAt          DateTime?
+  sentById        String?             @db.Uuid
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  group   HelpDeskGroup  @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  ticket  Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  comment TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  sentBy  User?          @relation(fields: [sentById], references: [id], onDelete: SetNull)
+
+  @@index([helpDeskGroupId, status])
+  @@index([ticketId])
+  @@index([status, createdAt])
+}
+
+/// Per-group leaderboard scoring.
+///
+/// Weights are configuration, not code: a help desk that decides CSAT matters
+/// more than raw volume changes it here. The defaults deliberately make
+/// quality outweigh throughput -- a leaderboard that rewards closing the most
+/// tickets is a leaderboard that teaches agents to cherry-pick easy ones and
+/// close them early.
+model LeaderboardConfig {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  helpDeskGroupId String            @unique @db.Uuid
+  isEnabled       Boolean           @default(true)
+  /// Agents see the full ranking. When false only managers do.
+  visibleToAgents Boolean           @default(true)
+  period          LeaderboardPeriod @default(MONTH)
+
+  /// Points per priority-weighted resolved ticket.
+  weightResolved          Float @default(10)
+  /// Points per percentage point of first-response SLA attainment.
+  weightResponseSla       Float @default(0.4)
+  /// Points per percentage point of resolution SLA attainment.
+  weightResolutionSla     Float @default(0.6)
+  /// Points per CSAT point above neutral (rating 3), per response.
+  weightCsat              Float @default(8)
+  /// Penalty per reopened ticket. Negative by convention.
+  weightReopen            Float @default(-15)
+  /// Below this many resolved tickets an agent is listed but unranked, so a
+  /// single lucky ticket cannot top the board.
+  minimumTicketsToRank    Int   @default(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
 }
 
 // ---------------------------------------------------------------------------

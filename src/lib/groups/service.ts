@@ -193,6 +193,10 @@ export async function provisionGroupDefaults(
     data: DEFAULT_NOTIFICATION_TEMPLATES.map((template) => ({ ...template, helpDeskGroupId })),
   });
 
+  // Leaderboard defaults: quality-weighted, so the board cannot be won by
+  // closing easy tickets fast. See src/lib/leaderboard/score.ts.
+  await tx.leaderboardConfig.create({ data: { helpDeskGroupId } });
+
   // --- Change management: its own module, provisioned alongside but not
   // sharing any of the ticket taxonomy above.
   await tx.changeType.createMany({

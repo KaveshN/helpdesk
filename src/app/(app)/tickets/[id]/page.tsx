@@ -5,8 +5,9 @@ import { getTicketDetail, groupMembers, ticketFormOptions } from '@/lib/tickets/
 import { can, canSeeInternalNotes } from '@/lib/authz/guard';
 import { NotFoundError } from '@/lib/errors';
 import { Pill } from '@/components/ui/pill';
+import { resolveRequester } from '@/lib/tickets/requester';
 import { TicketUpdatePanel } from '@/components/ticket-update-panel';
-import { CommentForm } from '@/components/comment-form';
+import { TicketReplyBox } from '@/components/ticket-reply-box';
 import { WatcherManager } from '@/components/watcher-manager';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +72,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   for (const category of options.categories) names.set(category.id, category.name);
   for (const member of members) names.set(member.id, member.name);
 
+  const requester = resolveRequester(ticket);
+  const mailbox = ticket.group.outboundEmailAddress ?? ticket.group.inboundEmailAddress;
   const canEdit = can(actor, 'ticket:update', group.helpDeskGroupId);
   const canComment = can(actor, 'ticket:comment', group.helpDeskGroupId);
 
@@ -93,7 +96,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             <span>{ticket.type.name}</span>
             <span>&middot;</span>
             <span>
-              raised by {ticket.requester.name} on {formatDateTime(ticket.createdAt)}
+              raised by {requester.name}
+              {requester.isExternal ? (
+                <span className="ml-1 text-faint">(external)</span>
+              ) : null} on {formatDateTime(ticket.createdAt)}
             </span>
           </div>
         </div>
@@ -144,9 +150,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
             {canComment ? (
               <div className="px-4 py-4">
-                <CommentForm
+                <TicketReplyBox
                   ticketId={ticket.id}
+                  canReplyByEmail={canComment && Boolean(requester.email)}
                   canAddInternal={canSeeInternalNotes(actor, group.helpDeskGroupId)}
+                  requesterEmail={requester.email || null}
+                  mailboxConfigured={Boolean(mailbox)}
                 />
               </div>
             ) : (
@@ -211,7 +220,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               {(
                 [
                   ['Assignee', ticket.assignee?.name ?? 'Unassigned'],
-                  ['Requester', ticket.requester.name],
+                  [
+                    'Requester',
+                    requester.isExternal ? `${requester.name} · external` : requester.name,
+                  ],
                   ['Category', ticket.category?.name ?? '—'],
                   ['Subcategory', ticket.subCategory?.name ?? '—'],
                   ['Source', ticket.source],

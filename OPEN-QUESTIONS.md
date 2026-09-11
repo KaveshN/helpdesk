@@ -39,9 +39,16 @@ list. Nothing here blocks Phase 1; most of it blocks **Phase 2**.
 
 **Q3 — Report catalogue.** Also flagged as unspecified in the brief. I've modelled `ReportType` as `TICKET_VOLUME`, `SLA_PERFORMANCE`, `AGENT_PERFORMANCE`, `TICKET_AGEING`, `TREND_ANALYSIS`, `CSAT`, `CHANGE_SUMMARY`. Which ones actually matter, what columns, and what does "agent performance" mean here — tickets closed, SLA attainment, CSAT, or a composite? (Composite scores drive behaviour; worth being deliberate.)
 
-**Q4 — Email-to-ticket transport.** IMAP polling against a shared mailbox, or Microsoft Graph change notifications / webhooks? You're already on Entra, so Graph with an application permission on a shared mailbox is the better fit — no stored mailbox password, proper least privilege. Confirm and I'll build against Graph instead of the IMAP stub.
+**Q4 — ANSWERED (2026-09-11): Microsoft Graph / Exchange Online.** Implemented
+in `src/lib/graph/`. Delta-query polling; webhooks can replace the poller behind
+the same interface once there is a public HTTPS endpoint.
 
-**Q5 — Outbound email.** SMTP relay, Microsoft Graph `sendMail`, or a provider (SES/SendGrid)? This affects bounce handling and whether replies can thread back into tickets.
+~~**Q4 — Email-to-ticket transport.**~~ IMAP polling against a shared mailbox, or Microsoft Graph change notifications / webhooks? You're already on Entra, so Graph with an application permission on a shared mailbox is the better fit — no stored mailbox password, proper least privilege. Confirm and I'll build against Graph instead of the IMAP stub.
+
+**Q5 — ANSWERED (2026-09-11): Graph `sendMail` / `reply` as the shared
+mailbox.** Send As, not on-behalf-of, so replies return to the help desk.
+
+~~**Q5 — Outbound email.**~~ SMTP relay, Microsoft Graph `sendMail`, or a provider (SES/SendGrid)? This affects bounce handling and whether replies can thread back into tickets.
 
 **Q6 — Attachment storage.** Azure Blob Storage (fits the Entra estate), S3-compatible, or a mounted volume? Also: max size, allowed types, and whether attachments need AV scanning before an agent can open them.
 
@@ -55,13 +62,43 @@ list. Nothing here blocks Phase 1; most of it blocks **Phase 2**.
 
 **Q9 — Ticket deletion.** Only HD Admin holds `ticket:delete`, and nothing calls it yet. Should tickets be deletable at all, or only cancellable (`CANCELLED` status exists)? Hard deletes and audit trails don't mix well.
 
-**Q10 — Requester identity.** Right now a requester must be a `User` row. When email-to-ticket lands, mail will arrive from people with no account and no Entra identity. Auto-create a contact-only `User` (my assumption), or add a separate `Contact` entity?
+**Q10 — ANSWERED (2026-09-11): a separate `Contact` entity.** External senders
+are Contacts and can never sign in; staff who email in are matched to their
+existing `User` so their history stays in one place.
+
+~~**Q10 — Requester identity.**~~ Right now a requester must be a `User` row. When email-to-ticket lands, mail will arrive from people with no account and no Entra identity. Auto-create a contact-only `User` (my assumption), or add a separate `Contact` entity?
 
 **Q11 — Session length** is 8 hours (a working day). Confirm, or align to your Entra conditional-access policy.
 
 **Q12 — Data retention.** Nothing is purged today. Do closed tickets, audit logs and notification logs have retention periods?
 
 ---
+
+## New questions from the Entra / Exchange / leaderboard work
+
+**Q13 — Which mailboxes, and is the application access policy in place?** The
+app needs an Entra app registration with `User.Read.All`, `Mail.ReadWrite` and
+`Mail.Send` **application** permissions plus admin consent. Until an Exchange
+`New-ApplicationAccessPolicy` restricts it, those mail permissions cover every
+mailbox in the tenant. I would not grant consent before that policy exists.
+
+**Q14 — Should the mailbox poller be a scheduled job or a 4th container?** The
+sync is exposed as an admin action today (`syncMailboxAction`) so it can be
+driven manually. Production wants it on a timer; the brief anticipated a
+separate worker container.
+
+**Q15 — Attachment handling on inbound mail.** `InboundEmail.hasAttachments` is
+recorded but attachments are not yet downloaded — that needs Q6 (storage)
+answered first.
+
+**Q16 — Leaderboard weights.** The defaults are a considered starting point, not
+a recommendation for your team: resolved ×10 (priority-weighted P1=4 … P4=1),
+response SLA ×0.4, resolution SLA ×0.6, CSAT ×8 above neutral, reopen −15,
+minimum 3 tickets to rank. Worth reviewing with the agents it will rank.
+
+**Q17 — Does the leaderboard go to agents or only managers?** Currently visible
+to agents (`LeaderboardConfig.visibleToAgents`). Flip it per group if it turns
+out to be demotivating rather than motivating.
 
 ## Deferred deliberately
 

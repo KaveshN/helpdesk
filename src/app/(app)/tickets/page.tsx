@@ -5,6 +5,7 @@ import { listTickets, ticketFormOptions } from '@/lib/tickets/service';
 import { ticketFilterSchema } from '@/lib/tickets/schemas';
 import { can } from '@/lib/authz/guard';
 import { Pill } from '@/components/ui/pill';
+import { resolveRequester } from '@/lib/tickets/requester';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { FilterTabs } from '@/components/ui/filter-tabs';
@@ -198,7 +199,19 @@ export default async function TicketsPage({
                       <td className="hidden md:table-cell">
                         <Pill label={ticket.priority.name} colour={ticket.priority.colour} />
                       </td>
-                      <td className="hidden text-muted 2xl:table-cell">{ticket.requester.name}</td>
+                      <td className="hidden text-muted 2xl:table-cell">
+                        {(() => {
+                          const requester = resolveRequester(ticket);
+                          return (
+                            <>
+                              {requester.name}
+                              {requester.isExternal ? (
+                                <span className="ml-1 text-xs text-faint">external</span>
+                              ) : null}
+                            </>
+                          );
+                        })()}
+                      </td>
                       <td className="hidden text-muted lg:table-cell">
                         {ticket.assignee?.name ?? (
                           <span style={{ color: 'var(--warning)' }}>Unassigned</span>

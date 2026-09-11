@@ -53,6 +53,7 @@ const ticketListSelect = {
   category: { select: { id: true, name: true } },
   assignee: { select: { id: true, name: true, email: true } },
   requester: { select: { id: true, name: true, email: true } },
+  contact: { select: { id: true, name: true, email: true } },
 } satisfies Prisma.TicketSelect;
 
 export type TicketListItem = Prisma.TicketGetPayload<{ select: typeof ticketListSelect }>;
@@ -141,6 +142,9 @@ export async function getTicketDetail(actor: Actor, group: GroupContext, ticketI
   const ticket = await scoped.ticket.findFirst({
     where: { AND: [{ id: ticketId }, ticketVisibilityFilter(actor, group.helpDeskGroupId)] },
     include: {
+      group: {
+        select: { id: true, name: true, inboundEmailAddress: true, outboundEmailAddress: true },
+      },
       status: true,
       priority: true,
       type: true,
@@ -148,6 +152,7 @@ export async function getTicketDetail(actor: Actor, group: GroupContext, ticketI
       subCategory: true,
       assignee: { select: { id: true, name: true, email: true } },
       requester: { select: { id: true, name: true, email: true } },
+      contact: true,
       createdBy: { select: { id: true, name: true, email: true } },
       watchers: { include: { user: { select: { id: true, name: true, email: true } } } },
       comments: {
