@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SetBreadcrumbs } from '@/components/shell/breadcrumbs';
 import { notFound } from 'next/navigation';
 import { ApprovalDecision, ChangeStatus } from '@/generated/prisma/enums';
 import { requireSessionContext } from '@/lib/auth/session';
@@ -95,13 +96,9 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <nav className="text-sm text-muted-foreground">
-        <Link href="/changes" className="underline">
-          Change requests
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="font-mono">{change.reference}</span>
-      </nav>
+      <SetBreadcrumbs
+        items={[{ label: 'Change requests', href: '/changes' }, { label: change.reference }]}
+      />
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -162,7 +159,9 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                 ) : null}
               </div>
 
-              {standing ? <p className="mt-1 text-xs text-muted-foreground">{standing.reason}</p> : null}
+              {standing ? (
+                <p className="mt-1 text-xs text-muted-foreground">{standing.reason}</p>
+              ) : null}
 
               <table className="data-table mt-3 w-full text-sm">
                 <thead>
@@ -198,7 +197,9 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-2 py-2 text-xs text-muted-foreground">{approval.comment ?? '—'}</td>
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
+                        {approval.comment ?? '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

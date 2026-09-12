@@ -192,7 +192,9 @@ export default async function TicketsPage({
                           <Pill label={ticket.priority.name} colour={ticket.priority.colour} />
                         </span>
                       </td>
-                      <td className="hidden text-muted-foreground xl:table-cell">{ticket.type.name}</td>
+                      <td className="hidden text-muted-foreground xl:table-cell">
+                        {ticket.type.name}
+                      </td>
                       <td className="hidden sm:table-cell">
                         <Pill label={ticket.status.name} colour={ticket.status.colour} />
                       </td>

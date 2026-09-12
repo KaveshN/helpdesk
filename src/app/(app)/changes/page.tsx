@@ -216,7 +216,9 @@ export default async function ChangesPage({
                       <td className="hidden whitespace-nowrap text-faint lg:table-cell">
                         {formatDate(change.plannedStartAt)}
                       </td>
-                      <td className="hidden text-muted-foreground 2xl:table-cell">{change.requester.name}</td>
+                      <td className="hidden text-muted-foreground 2xl:table-cell">
+                        {change.requester.name}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

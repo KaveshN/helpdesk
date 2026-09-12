@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SetBreadcrumbs } from '@/components/shell/breadcrumbs';
 import { notFound } from 'next/navigation';
 import { requireSessionContext } from '@/lib/auth/session';
 import { getTicketDetail, groupMembers, ticketFormOptions } from '@/lib/tickets/service';
@@ -79,13 +80,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <nav className="text-sm text-muted-foreground">
-        <Link href="/tickets" className="underline">
-          Tickets
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="font-mono">{ticket.reference}</span>
-      </nav>
+      <SetBreadcrumbs
+        items={[{ label: 'Tickets', href: '/tickets' }, { label: ticket.reference }]}
+      />
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>

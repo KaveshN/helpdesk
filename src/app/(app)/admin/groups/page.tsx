@@ -68,7 +68,9 @@ export default async function AdminGroupsPage() {
                 <td className="px-4 py-2 text-muted-foreground">{group.timeZone}</td>
                 <td className="px-4 py-2 tabular-nums">{group._count.memberships}</td>
                 <td className="px-4 py-2 tabular-nums">{group._count.tickets}</td>
-                <td className="px-4 py-2 text-muted-foreground">{group.inboundEmailAddress ?? '—'}</td>
+                <td className="px-4 py-2 text-muted-foreground">
+                  {group.inboundEmailAddress ?? '—'}
+                </td>
                 <td className="px-4 py-2">
                   {group.isActive ? (
                     <span className="text-success">Active</span>
@@ -175,7 +177,9 @@ export default async function AdminGroupsPage() {
                 className="input"
                 placeholder="kenya-helpdesk@example.com"
               />
-              <p className="mt-1 text-xs text-muted-foreground">Used by email-to-ticket in Phase 6.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Used by email-to-ticket in Phase 6.
+              </p>
             </div>
             <div>
               <label className="label" htmlFor="outboundEmailAddress">

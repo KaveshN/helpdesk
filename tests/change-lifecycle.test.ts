@@ -17,9 +17,12 @@ const vote = (over: Partial<ApprovalVote> = {}): ApprovalVote => ({
   isChair: false,
   ...over,
 });
-const approve = (over: Partial<ApprovalVote> = {}) => vote({ decision: ApprovalDecision.APPROVED, ...over });
-const reject = (over: Partial<ApprovalVote> = {}) => vote({ decision: ApprovalDecision.REJECTED, ...over });
-const abstain = (over: Partial<ApprovalVote> = {}) => vote({ decision: ApprovalDecision.ABSTAINED, ...over });
+const approve = (over: Partial<ApprovalVote> = {}) =>
+  vote({ decision: ApprovalDecision.APPROVED, ...over });
+const reject = (over: Partial<ApprovalVote> = {}) =>
+  vote({ decision: ApprovalDecision.REJECTED, ...over });
+const abstain = (over: Partial<ApprovalVote> = {}) =>
+  vote({ decision: ApprovalDecision.ABSTAINED, ...over });
 
 describe('state machine', () => {
   it('walks the happy path', () => {
@@ -209,7 +212,9 @@ describe('noticeShortfallHours', () => {
   });
 
   it('is zero when no notice period or start date is set', () => {
-    expect(noticeShortfallHours({ submittedAt, plannedStartAt: null, minimumNoticeHours: 48 })).toBe(0);
+    expect(
+      noticeShortfallHours({ submittedAt, plannedStartAt: null, minimumNoticeHours: 48 }),
+    ).toBe(0);
     expect(
       noticeShortfallHours({ submittedAt, plannedStartAt: submittedAt, minimumNoticeHours: 0 }),
     ).toBe(0);

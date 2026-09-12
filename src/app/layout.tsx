@@ -33,6 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang="en-ZA"
       data-theme={explicitTheme}
       data-density={preferences.density}
+      data-sidebar={preferences.sidebar}
       suppressHydrationWarning
     >
       <body className="min-h-screen antialiased">

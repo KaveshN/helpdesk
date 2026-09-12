@@ -108,7 +108,12 @@ describe('the anti-gaming property', () => {
       csatAverage: 5,
       csatResponses: 1,
     });
-    const veteran = agent({ userId: 'vet', name: 'Veteran', weightedResolved: 25, resolvedCount: 20 });
+    const veteran = agent({
+      userId: 'vet',
+      name: 'Veteran',
+      weightedResolved: 25,
+      resolvedCount: 20,
+    });
 
     const board = buildLeaderboard([newcomer, veteran], weights);
     expect(board[0]!.name).toBe('Veteran');
@@ -148,7 +153,10 @@ describe('buildLeaderboard', () => {
 
   it('always returns the component breakdown alongside the total', () => {
     // A score nobody can decompose is a score nobody trusts.
-    const board = buildLeaderboard([agent({ csatAverage: 4, csatResponses: 2, reopenedCount: 1 })], weights);
+    const board = buildLeaderboard(
+      [agent({ csatAverage: 4, csatResponses: 2, reopenedCount: 1 })],
+      weights,
+    );
     const row = board[0]!;
     expect(Object.keys(row.breakdown).sort()).toEqual([
       'csat',

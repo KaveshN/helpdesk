@@ -15,11 +15,10 @@ function RankBadge({ rank }: { rank: number | null }) {
   }
   if (rank <= 3) {
     const Icon = rank === 1 ? Trophy : rank === 2 ? Medal : Award;
-    const colour = rank === 1 ? 'text-warning' : rank === 2 ? 'text-muted-foreground' : 'text-faint';
+    const colour =
+      rank === 1 ? 'text-warning' : rank === 2 ? 'text-muted-foreground' : 'text-faint';
     return (
-      <span
-        className={`inline-flex items-center gap-1.5 font-semibold tabular ${colour}`}
-      >
+      <span className={`inline-flex items-center gap-1.5 font-semibold tabular ${colour}`}>
         <Icon className="size-4" aria-hidden />
         {rank}
       </span>
@@ -60,10 +59,7 @@ export function LeaderboardPanel({ view }: { view: LeaderboardView }) {
           {ranked.map((row) => {
             const isMe = view.me?.userId === row.userId;
             return (
-              <li
-                key={row.userId}
-                className={isMe ? 'bg-primary-subtle px-4 py-3' : 'px-4 py-3'}
-              >
+              <li key={row.userId} className={isMe ? 'bg-primary-subtle px-4 py-3' : 'px-4 py-3'}>
                 <div className="flex items-center gap-3">
                   <span className="w-8 shrink-0">
                     <RankBadge rank={row.rank} />

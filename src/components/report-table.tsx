@@ -23,7 +23,9 @@ export function ReportTable({ report }: { report: ReportResult }) {
 
       <div className="card overflow-x-auto">
         {report.rows.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">No data for this period.</p>
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+            No data for this period.
+          </p>
         ) : (
           <table className="data-table w-full min-w-[720px] text-sm">
             <thead>

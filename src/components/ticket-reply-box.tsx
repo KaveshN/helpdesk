@@ -132,7 +132,6 @@ export function TicketReplyBox({
               {emailPending ? 'Sending…' : 'Send reply'}
             </button>
           </div>
-
         </form>
       ) : null}
 

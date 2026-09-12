@@ -134,9 +134,12 @@ token drops below WCAG AA in either theme.
 - Dates go through `src/lib/format/date.ts` with the group time zone;
   `slaCountdown()` there is the only green→amber→red SLA logic.
 
-- Layout is an app shell: `Sidebar` + `lg:pl-[var(--sidebar-width)]` content column. Pages
-  render their own `PageHeader`; they do not re-centre themselves in a narrow
-  column.
+- Layout is an app shell (`AppShell`): collapsible `Sidebar` rail, sticky
+  `TopBar` (breadcrumbs, ⌘K palette, appearance, account), content column
+  offset by `--sidebar-width`. Detail pages name themselves in the trail with
+  `<SetBreadcrumbs>`; everything else derives from the path. Pages render
+  their own `PageHeader`; they do not re-centre themselves in a narrow column.
+  Every route group has a `loading.tsx` skeleton from `page-skeleton.tsx`.
 - Colour is signal. Chrome stays neutral; red/amber/green mean SLA, risk or
   lifecycle. `Pill` = neutral chip + coloured dot; `TonePill` = fully tinted,
   used sparingly.

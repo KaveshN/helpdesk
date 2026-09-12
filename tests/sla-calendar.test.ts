@@ -10,7 +10,11 @@ import {
 } from '@/lib/sla/calendar';
 
 /** Mon-Fri 08:00-17:00 (540 working minutes/day) in the given zone. */
-function officeHours(timeZone: string, holidays: string[] = [], recurring: string[] = []): BusinessCalendar {
+function officeHours(
+  timeZone: string,
+  holidays: string[] = [],
+  recurring: string[] = [],
+): BusinessCalendar {
   return {
     timeZone,
     workingHours: Array.from({ length: 7 }, (_, dayOfWeek) => ({
@@ -173,16 +177,16 @@ describe('addBusinessMinutes', () => {
 
 describe('businessMinutesBetween', () => {
   it('counts minutes inside one day', () => {
-    expect(
-      businessMinutesBetween(monday0900JHB, new Date('2026-09-14T09:30:00.000Z'), JHB),
-    ).toBe(150);
+    expect(businessMinutesBetween(monday0900JHB, new Date('2026-09-14T09:30:00.000Z'), JHB)).toBe(
+      150,
+    );
   });
 
   it('returns 0 for a reversed or empty interval', () => {
     expect(businessMinutesBetween(monday0900JHB, monday0900JHB, JHB)).toBe(0);
-    expect(
-      businessMinutesBetween(monday0900JHB, new Date('2026-09-13T00:00:00.000Z'), JHB),
-    ).toBe(0);
+    expect(businessMinutesBetween(monday0900JHB, new Date('2026-09-13T00:00:00.000Z'), JHB)).toBe(
+      0,
+    );
   });
 
   it('counts a weekend as zero consumed budget', () => {

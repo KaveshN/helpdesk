@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getAccessibleGroups, getActor, resolveGroupContext } from '@/lib/auth/session';
 import { signOut } from '@/lib/auth/config';
 import { can } from '@/lib/authz/guard';
 import { pendingApprovalCount } from '@/lib/changes/service';
-import { Sidebar } from '@/components/shell/sidebar';
+import { readPreferences } from '@/lib/preferences/schema';
+import { brand } from '@/config/brand';
+import { AppShell } from '@/components/shell/app-shell';
 import type { NavSection } from '@/components/shell/nav-items';
 
 /**
@@ -25,8 +28,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const actor = await getActor();
   if (!actor) redirect('/login');
 
-  const groups = await getAccessibleGroups();
-  const group = await resolveGroupContext();
+  const [groups, group, cookieStore] = await Promise.all([
+    getAccessibleGroups(),
+    resolveGroupContext(),
+    cookies(),
+  ]);
+  const preferences = readPreferences((name) => cookieStore.get(name)?.value);
 
   async function handleSignOut() {
     'use server';
@@ -90,43 +97,41 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (administration.length > 0) sections.push({ title: 'Administration', items: administration });
 
   return (
-    <div className="min-h-screen">
-      <Sidebar
-        sections={sections}
-        groups={groups}
-        activeGroupId={groupId ?? null}
-        user={{
-          name: actor.name,
-          email: actor.email,
-          role: actor.isSuperAdmin
-            ? 'Super Administrator'
-            : (ROLE_LABEL[group?.role ?? ''] ?? 'No role'),
-        }}
-        signOut={handleSignOut}
-      />
-
-      {/* Offset by the rail on desktop; full bleed below it. The content column
-          fills the viewport rather than sitting in a fixed-width page. */}
-      <div className="lg:pl-[var(--sidebar-width)]">
-        <main className="page-max page-x py-6 lg:py-8">
-          {group ? (
-            children
-          ) : (
-            <div className="card mx-auto max-w-lg p-6">
-              <h1 className="text-base font-semibold">No help desk yet</h1>
-              <p className="mt-2 text-muted-foreground">
-                Your account exists but is not a member of any help desk group. A Super
-                Administrator needs to add you to one before you can see tickets.
-              </p>
-              {actor.isSuperAdmin ? (
-                <Link href="/admin/groups" className="btn-primary mt-5">
-                  Create the first help desk
-                </Link>
-              ) : null}
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
+    <AppShell
+      sections={sections}
+      groups={groups}
+      activeGroupId={groupId ?? null}
+      user={{
+        name: actor.name,
+        email: actor.email,
+        role: actor.isSuperAdmin
+          ? 'Super Administrator'
+          : (ROLE_LABEL[group?.role ?? ''] ?? 'No role'),
+      }}
+      signOut={handleSignOut}
+      quickActions={{
+        canCreateTicket: allow('ticket:create'),
+        canCreateChange: allow('change:create'),
+      }}
+      initialCollapsed={preferences.sidebar === 'collapsed'}
+      brandName={brand.productName}
+    >
+      {group ? (
+        children
+      ) : (
+        <div className="card mx-auto max-w-lg p-6">
+          <h1 className="text-lg font-semibold">No help desk yet</h1>
+          <p className="mt-2 text-muted-foreground">
+            Your account exists but is not a member of any help desk group. A Super Administrator
+            needs to add you to one before you can see tickets.
+          </p>
+          {actor.isSuperAdmin ? (
+            <Link href="/admin/groups" className="btn-primary mt-5">
+              Create the first help desk
+            </Link>
+          ) : null}
+        </div>
+      )}
+    </AppShell>
   );
 }

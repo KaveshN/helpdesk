@@ -76,9 +76,13 @@ export default async function ChangeConfigPage() {
                   <span className="text-xs text-muted-foreground">no CAB</span>
                 )}
                 {risk.minimumNoticeHours > 0 ? (
-                  <span className="text-xs text-muted-foreground">{risk.minimumNoticeHours}h notice</span>
+                  <span className="text-xs text-muted-foreground">
+                    {risk.minimumNoticeHours}h notice
+                  </span>
                 ) : null}
-                {risk.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {risk.isDefault ? (
+                  <span className="text-xs text-muted-foreground">default</span>
+                ) : null}
                 {!risk.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 
@@ -228,8 +232,12 @@ export default async function ChangeConfigPage() {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold">
                 {cab.name}
-                {cab.isDefault ? <span className="ml-2 text-xs text-muted-foreground">default</span> : null}
-                {!cab.isActive ? <span className="ml-2 text-xs text-destructive">inactive</span> : null}
+                {cab.isDefault ? (
+                  <span className="ml-2 text-xs text-muted-foreground">default</span>
+                ) : null}
+                {!cab.isActive ? (
+                  <span className="ml-2 text-xs text-destructive">inactive</span>
+                ) : null}
               </h3>
               <span className="text-xs text-muted-foreground">
                 {cab.approvalMode === 'QUORUM'
@@ -278,7 +286,9 @@ export default async function ChangeConfigPage() {
                     <tr key={member.id}>
                       <td className="px-2 py-2">
                         {member.user.name}
-                        <span className="ml-2 text-xs text-muted-foreground">{member.user.email}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {member.user.email}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-xs text-muted-foreground">
                         {member.isChair ? 'Chair · ' : ''}
@@ -507,8 +517,12 @@ export default async function ChangeConfigPage() {
                   {type.isPreApproved ? (
                     <span className="text-xs text-success">pre-approved</span>
                   ) : null}
-                  {type.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
-                  {!type.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
+                  {type.isDefault ? (
+                    <span className="text-xs text-muted-foreground">default</span>
+                  ) : null}
+                  {!type.isActive ? (
+                    <span className="text-xs text-destructive">inactive</span>
+                  ) : null}
                 </summary>
                 {canEditTaxonomy ? (
                   <div className="mt-4">

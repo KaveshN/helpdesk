@@ -96,7 +96,9 @@ export default async function ReportsPage({
                 }`}
               >
                 <span className="font-medium">{entry.title}</span>
-                <span className={`mt-0.5 block text-xs ${active ? 'text-faint' : 'text-muted-foreground'}`}>
+                <span
+                  className={`mt-0.5 block text-xs ${active ? 'text-faint' : 'text-muted-foreground'}`}
+                >
                   {entry.description}
                 </span>
               </Link>

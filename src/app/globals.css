@@ -89,6 +89,11 @@
     --density: 0.7;
   }
 
+  /* The rail's width and the content offset both read --sidebar-width. */
+  :root[data-sidebar='collapsed'] {
+    --sidebar-width: var(--sidebar-width-collapsed);
+  }
+
   :root[data-theme='dark'] {
     color-scheme: dark;
 

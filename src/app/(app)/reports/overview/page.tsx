@@ -20,10 +20,11 @@ function Metric({
   tone?: Tone;
   suffix?: string;
 }) {
-
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       <div className={`mt-1 text-2xl font-semibold tabular-nums ${TONE_TEXT[tone]}`}>
         {value === null ? <span className="text-faint">—</span> : `${value}${suffix ?? ''}`}
       </div>
@@ -37,7 +38,9 @@ function GroupPanel({ overview }: { overview: GroupOverview }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">
           {overview.groupName}
-          <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">{overview.groupKey}</span>
+          <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">
+            {overview.groupKey}
+          </span>
         </h2>
         <span className="text-xs text-muted-foreground">{overview.timeZone}</span>
       </div>

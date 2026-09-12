@@ -53,22 +53,42 @@ const ticket = (overrides: Partial<TicketForSla> = {}): TicketForSla => ({
 
 describe('selectPolicy', () => {
   it('picks the lowest matchOrder among matching policies', () => {
-    const specific = policy({ id: 'p-specific', matchOrder: 10, isDefault: false, ticketTypeId: 'type-incident' });
+    const specific = policy({
+      id: 'p-specific',
+      matchOrder: 10,
+      isDefault: false,
+      ticketTypeId: 'type-incident',
+    });
     expect(selectPolicy([policy(), specific], ticket())?.id).toBe('p-specific');
   });
 
   it('ignores a policy whose type condition does not match', () => {
-    const other = policy({ id: 'p-other', matchOrder: 10, isDefault: false, ticketTypeId: 'type-request' });
+    const other = policy({
+      id: 'p-other',
+      matchOrder: 10,
+      isDefault: false,
+      ticketTypeId: 'type-request',
+    });
     expect(selectPolicy([policy(), other], ticket())?.id).toBe('p-default');
   });
 
   it('ignores a policy whose category condition does not match', () => {
-    const other = policy({ id: 'p-other', matchOrder: 10, isDefault: false, categoryId: 'cat-network' });
+    const other = policy({
+      id: 'p-other',
+      matchOrder: 10,
+      isDefault: false,
+      categoryId: 'cat-network',
+    });
     expect(selectPolicy([policy(), other], ticket())?.id).toBe('p-default');
   });
 
   it('matches a category-scoped policy for an uncategorised ticket only when the policy is unscoped', () => {
-    const scoped = policy({ id: 'p-scoped', matchOrder: 10, isDefault: false, categoryId: 'cat-hardware' });
+    const scoped = policy({
+      id: 'p-scoped',
+      matchOrder: 10,
+      isDefault: false,
+      categoryId: 'cat-hardware',
+    });
     expect(selectPolicy([scoped], ticket({ categoryId: null }))).toBeNull();
     expect(selectPolicy([policy()], ticket({ categoryId: null }))?.id).toBe('p-default');
   });
@@ -97,7 +117,13 @@ describe('computeSla', () => {
   });
 
   it('ignores the calendar when the policy is 24/7', () => {
-    const outcome = computeSla(ticket(), policy({ businessHoursOnly: false }), target, JHB, created);
+    const outcome = computeSla(
+      ticket(),
+      policy({ businessHoursOnly: false }),
+      target,
+      JHB,
+      created,
+    );
     expect(outcome.firstResponseDueAt?.toISOString()).toBe('2026-09-14T08:00:00.000Z');
     // 480 calendar minutes from 09:00 = 17:00 too, but a weekend ticket differs:
     const weekend = ticket({ createdAt: new Date('2026-09-13T00:00:00.000Z') });
@@ -133,21 +159,39 @@ describe('computeSla', () => {
 
   it('leaves an open, in-target ticket UNDECIDED rather than counting it as met', () => {
     // This is the assertion that keeps the reports honest.
-    const outcome = computeSla(ticket(), policy(), target, JHB, new Date('2026-09-14T07:30:00.000Z'));
+    const outcome = computeSla(
+      ticket(),
+      policy(),
+      target,
+      JHB,
+      new Date('2026-09-14T07:30:00.000Z'),
+    );
     expect(outcome.responseMet).toBeNull();
     expect(outcome.resolutionMet).toBeNull();
     expect(outcome.responseBreached).toBe(false);
   });
 
   it('breaches an open ticket once it passes target even with no response', () => {
-    const outcome = computeSla(ticket(), policy(), target, JHB, new Date('2026-09-14T09:00:00.000Z'));
+    const outcome = computeSla(
+      ticket(),
+      policy(),
+      target,
+      JHB,
+      new Date('2026-09-14T09:00:00.000Z'),
+    );
     expect(outcome.responseMet).toBe(false);
     expect(outcome.responseBreached).toBe(true);
   });
 
   it('flags at-risk at the warning threshold but not before', () => {
     // 80% of 60 minutes = 48 minutes.
-    const before = computeSla(ticket(), policy(), target, JHB, new Date('2026-09-14T07:47:00.000Z'));
+    const before = computeSla(
+      ticket(),
+      policy(),
+      target,
+      JHB,
+      new Date('2026-09-14T07:47:00.000Z'),
+    );
     const after = computeSla(ticket(), policy(), target, JHB, new Date('2026-09-14T07:48:00.000Z'));
     expect(before.responseAtRisk).toBe(false);
     expect(after.responseAtRisk).toBe(true);

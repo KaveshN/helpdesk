@@ -105,7 +105,9 @@ export default async function LoginPage({
           </div>
 
           <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-muted-foreground">Your groups and roles are assigned by an administrator.</p>
+          <p className="mt-1 text-muted-foreground">
+            Your groups and roles are assigned by an administrator.
+          </p>
 
           {error ? (
             <div

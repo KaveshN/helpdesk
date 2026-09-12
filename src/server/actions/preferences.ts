@@ -3,10 +3,13 @@
 import { cookies } from 'next/headers';
 import {
   DENSITY_COOKIE,
+  SIDEBAR_COOKIE,
   THEME_COOKIE,
   densitySchema,
+  sidebarSchema,
   themeSchema,
   type Density,
+  type SidebarState,
   type Theme,
 } from '@/lib/preferences/schema';
 import { runAction, type ActionResult } from '@/server/actions/result';
@@ -47,5 +50,18 @@ export async function setDensityAction(raw: string): Promise<ActionResult<{ dens
     }
     await setPreferenceCookie(DENSITY_COOKIE, parsed.data);
     return { density: parsed.data };
+  });
+}
+
+export async function setSidebarAction(
+  raw: string,
+): Promise<ActionResult<{ sidebar: SidebarState }>> {
+  return runAction('preferences.setSidebar', async () => {
+    const parsed = sidebarSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new ValidationError('Unknown sidebar state', { sidebar: ['Unknown sidebar state'] });
+    }
+    await setPreferenceCookie(SIDEBAR_COOKIE, parsed.data);
+    return { sidebar: parsed.data };
   });
 }

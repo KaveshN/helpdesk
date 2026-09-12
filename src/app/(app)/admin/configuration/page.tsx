@@ -103,8 +103,12 @@ export default async function ConfigurationPage() {
                 <Pill label={status.name} colour={status.colour} />
                 <span className="text-muted-foreground">{status.category}</span>
                 {status.pausesSla ? <span className="text-xs text-warning">pauses SLA</span> : null}
-                {status.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
-                {!status.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
+                {status.isDefault ? (
+                  <span className="text-xs text-muted-foreground">default</span>
+                ) : null}
+                {!status.isActive ? (
+                  <span className="text-xs text-destructive">inactive</span>
+                ) : null}
               </summary>
 
               {readOnly ? null : (
@@ -215,8 +219,12 @@ export default async function ConfigurationPage() {
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <Pill label={priority.name} colour={priority.colour} />
                 <span className="text-muted-foreground">level {priority.level}</span>
-                {priority.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
-                {!priority.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
+                {priority.isDefault ? (
+                  <span className="text-xs text-muted-foreground">default</span>
+                ) : null}
+                {!priority.isActive ? (
+                  <span className="text-xs text-destructive">inactive</span>
+                ) : null}
               </summary>
 
               {readOnly ? null : (
@@ -307,7 +315,9 @@ export default async function ConfigurationPage() {
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <span className="font-medium">{type.name}</span>
                 <span className="text-muted-foreground">{type.kind}</span>
-                {type.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {type.isDefault ? (
+                  <span className="text-xs text-muted-foreground">default</span>
+                ) : null}
                 {!type.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 

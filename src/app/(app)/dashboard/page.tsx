@@ -31,10 +31,7 @@ function Breakdown({
               <Pill label={row.name} colour={row.colour} />
               <span className="tabular text-muted-foreground">{row.count}</span>
             </div>
-            <div
-              className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted"
-              aria-hidden
-            >
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
               <div
                 className="h-full rounded-full transition-all"
                 style={{
