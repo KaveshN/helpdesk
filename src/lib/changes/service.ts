@@ -6,8 +6,7 @@ import {
   NotificationEvent,
 } from '@/generated/prisma/enums';
 import type { Prisma } from '@/generated/prisma/client';
-import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import type { Actor, GroupContext } from '@/lib/authz/actor';
 import { can, requireCapability } from '@/lib/authz/guard';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
@@ -36,7 +35,7 @@ import type {
  * ownership.
  *
  * Same layering rule as tickets: reads through `scopedDb`, multi-row writes in
- * a `db().$transaction` with `helpDeskGroupId` set explicitly.
+ * a `scopedTransaction` with `helpDeskGroupId` set explicitly on every row.
  */
 
 const changeListSelect = {
@@ -227,7 +226,7 @@ export async function createChange(actor: Actor, group: GroupContext, input: Cre
     }
   }
 
-  const change = await db().$transaction(async (tx) => {
+  const change = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const sequence = await claimChangeSequence(tx, helpDeskGroupId);
     const created = await tx.changeRequest.create({
       data: {
@@ -351,7 +350,7 @@ export async function updateChange(actor: Actor, group: GroupContext, input: Upd
 
   events.push({ ...base, type: ChangeEventType.UPDATED });
 
-  const updated = await db().$transaction(async (tx) => {
+  const updated = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const result = await tx.changeRequest.update({
       where: { id: input.changeRequestId, helpDeskGroupId },
       data,
@@ -452,7 +451,7 @@ export async function submitChange(
     );
   }
 
-  const result = await db().$transaction(async (tx) => {
+  const result = await scopedTransaction(helpDeskGroupId, async (tx) => {
     if (!needsCab) {
       const updated = await tx.changeRequest.update({
         where: { id: change.id, helpDeskGroupId },
@@ -576,7 +575,7 @@ export async function recordDecision(
 
   const now = new Date();
 
-  const outcome = await db().$transaction(async (tx) => {
+  const outcome = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const approval = await tx.changeApproval.upsert({
       where: {
         changeRequestId_approverId: {
@@ -721,7 +720,7 @@ export async function transitionChange(
     [ChangeStatus.DRAFT]: ChangeEventType.UPDATED,
   };
 
-  const updated = await db().$transaction(async (tx) => {
+  const updated = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const result = await tx.changeRequest.update({
       where: { id: change.id, helpDeskGroupId },
       data,

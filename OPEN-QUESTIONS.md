@@ -52,7 +52,12 @@ mailbox.** Send As, not on-behalf-of, so replies return to the help desk.
 
 **Q6 — Attachment storage.** Azure Blob Storage (fits the Entra estate), S3-compatible, or a mounted volume? Also: max size, allowed types, and whether attachments need AV scanning before an agent can open them.
 
-**Q7 — Do any two groups need database-enforced isolation?** If any group's data must not be visible to another for legal or regulatory reasons (rather than merely "shouldn't be"), I should add Postgres row-level security as defence in depth before go-live. It's roughly a day's work now and much more disruptive later.
+**Q7 — ANSWERED (2026-09-12): yes, enforce it in the database.** Postgres
+row-level security is now on every group-scoped table (migration
+`shared_calendars_and_rls`). `scopedDb()` and `scopedTransaction()` run as the
+`helpdesk_app` role with `app.current_group_id` set per transaction; the
+unscoped client runs as `helpdesk_platform`. The app never connects as the
+schema owner. `npm run verify:rls` checks it live. See `DESIGN_REVIEW.md`.
 
 ---
 
@@ -82,10 +87,10 @@ app needs an Entra app registration with `User.Read.All`, `Mail.ReadWrite` and
 `New-ApplicationAccessPolicy` restricts it, those mail permissions cover every
 mailbox in the tenant. I would not grant consent before that policy exists.
 
-**Q14 — Should the mailbox poller be a scheduled job or a 4th container?** The
-sync is exposed as an admin action today (`syncMailboxAction`) so it can be
-driven manually. Production wants it on a timer; the brief anticipated a
-separate worker container.
+**Q14 — ANSWERED (2026-09-12): a worker container.** `src/worker/` runs a
+BullMQ queue on the existing Redis with the mailbox poll and outbound flush as
+repeatable jobs (`npm run worker`; the `worker` compose service). The admin
+action remains for a manual poll. SLA sweeps join the worker after Q1/Q2.
 
 **Q15 — Attachment handling on inbound mail.** `InboundEmail.hasAttachments` is
 recorded but attachments are not yet downloaded — that needs Q6 (storage)
@@ -105,3 +110,19 @@ out to be demotivating rather than motivating.
 - **Visual workflow builder** — §4 says model it as a rule set for v1. `Workflow` + `WorkflowCondition` + `WorkflowAction` is that rule set; there is no builder UI yet.
 - **SAML** — §6 says Entra OIDC only unless a later phase mandates it.
 - **Email worker container** — the interface is stubbed (`InboundEmail` table, `IMAP_*` env vars). It becomes a 4th compose service once Q4 is answered.
+
+---
+
+## Raised by the design review (2026-09-12)
+
+**Q18 — Scale.** Rough ticket volume per group per month and concurrent agent
+count. Decides whether live report queries stay (current) or reporting moves to
+scheduled materialized views.
+
+**Q19 — Data residency.** Any hard requirement to keep the Kenya group's data
+in-region, or is one Azure region acceptable for a single organisation? Also
+decides retention per data type (see Q12).
+
+**Q20 — Migration of existing history.** Greenfield, or must tickets from the
+current tool be imported? An import materially changes scope: reference
+mapping, requester matching against Entra, attachment transfer.

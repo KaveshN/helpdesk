@@ -1,6 +1,6 @@
 import { TicketEventType, TicketSource } from '@/generated/prisma/enums';
 import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import { requireCapability } from '@/lib/authz/guard';
 import type { Actor, GroupContext } from '@/lib/authz/actor';
 import { ConflictError, NotFoundError } from '@/lib/errors';
@@ -98,7 +98,7 @@ export async function queueReply(actor: Actor, group: GroupContext, input: Queue
     reference: ticket.reference,
   });
 
-  const result = await db().$transaction(async (tx) => {
+  const result = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const comment = await tx.ticketComment.create({
       data: {
         helpDeskGroupId,

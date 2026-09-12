@@ -634,7 +634,10 @@ model SlaTarget {
 
 model Calendar {
   id              String   @id @default(uuid(7)) @db.Uuid
-  helpDeskGroupId String   @db.Uuid
+  /// NULL for a platform calendar shared by several groups (e.g. one
+  /// "South Africa business hours" serving JHB and CPT). Group-owned
+  /// calendars set it. Platform calendars are edited only by a Super Admin.
+  helpDeskGroupId String?  @db.Uuid
   name            String
   timeZone        String
   /// Free-text region label, e.g. "South Africa", "Kenya".
@@ -644,7 +647,7 @@ model Calendar {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  group        HelpDeskGroup      @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  group        HelpDeskGroup?     @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
   workingHours WorkingHours[]
   holidays     Holiday[]
   slaPolicies  SlaPolicy[]
@@ -659,7 +662,8 @@ model Calendar {
 /// across DST and across the SA/Kenya offset difference.
 model WorkingHours {
   id              String   @id @default(uuid(7)) @db.Uuid
-  helpDeskGroupId String   @db.Uuid
+  /// Mirrors the calendar: NULL when the calendar is a shared platform one.
+  helpDeskGroupId String?  @db.Uuid
   calendarId      String   @db.Uuid
   /// 0 = Sunday ... 6 = Saturday (matches JS Date#getDay).
   dayOfWeek       Int
@@ -669,7 +673,7 @@ model WorkingHours {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  group    HelpDeskGroup? @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
   calendar Calendar      @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@unique([calendarId, dayOfWeek])
@@ -678,7 +682,8 @@ model WorkingHours {
 
 model Holiday {
   id              String   @id @default(uuid(7)) @db.Uuid
-  helpDeskGroupId String   @db.Uuid
+  /// Mirrors the calendar: NULL when the calendar is a shared platform one.
+  helpDeskGroupId String?  @db.Uuid
   calendarId      String   @db.Uuid
   name            String
   /// Date-only; the calendar's time zone determines the local day.
@@ -688,7 +693,7 @@ model Holiday {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  group    HelpDeskGroup @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
+  group    HelpDeskGroup? @relation(fields: [helpDeskGroupId], references: [id], onDelete: Cascade)
   calendar Calendar      @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@unique([calendarId, date])

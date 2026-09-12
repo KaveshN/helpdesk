@@ -1,6 +1,6 @@
 import type { Prisma } from '@/generated/prisma/client';
 import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import { auditDiff, recordAudit, type AuditActor } from '@/lib/audit';
 import { requireCapability } from '@/lib/authz/guard';
 import type { Actor, GroupContext } from '@/lib/authz/actor';
@@ -95,7 +95,7 @@ export async function saveChangeType(ctx: Ctx, input: z.output<typeof saveChange
   const before = input.id ? await scoped.changeType.findFirst({ where: { id: input.id } }) : null;
   if (input.id && !before) throw new NotFoundError('Change type not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     if (input.isDefault) {
       await tx.changeType.updateMany({
         where: { helpDeskGroupId, isDefault: true, ...(input.id ? { id: { not: input.id } } : {}) },
@@ -140,7 +140,7 @@ export async function saveChangeCategory(
     : null;
   if (input.id && !before) throw new NotFoundError('Change category not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     const data = {
       name: input.name,
       description: input.description ?? null,
@@ -197,7 +197,7 @@ export async function saveRiskLevel(ctx: Ctx, input: z.output<typeof saveRiskLev
     }
   }
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     if (input.isDefault) {
       await tx.changeRiskLevel.updateMany({
         where: { helpDeskGroupId, isDefault: true, ...(input.id ? { id: { not: input.id } } : {}) },
@@ -262,7 +262,7 @@ export async function saveCab(ctx: Ctx, input: SaveCabInput) {
     : null;
   if (input.id && !before) throw new NotFoundError('CAB not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     const data = {
       name: input.name,
       description: input.description ?? null,
@@ -320,7 +320,7 @@ export async function saveCabMember(
     });
   }
 
-  const result = await db().$transaction(async (tx) => {
+  const result = await scopedTransaction(helpDeskGroupId, async (tx) => {
     if (input.isChair) {
       // One chair per board, otherwise CHAIR_ONLY mode is ambiguous.
       await tx.cabMember.updateMany({
@@ -375,7 +375,7 @@ export async function removeCabMember(ctx: Ctx, input: { cabId: string; userId: 
   });
   if (!existing) throw new NotFoundError('That person is not on this CAB');
 
-  await db().$transaction(async (tx) => {
+  await scopedTransaction(helpDeskGroupId, async (tx) => {
     await tx.cabMember.delete({ where: { id: existing.id } });
     await recordAudit({
       action: 'cab_member.delete',

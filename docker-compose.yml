@@ -11,7 +11,8 @@ services:
       - .env
     environment:
       # Override the host-machine URLs from .env with in-network service names.
-      DATABASE_URL: postgresql://helpdesk:helpdesk@db:5432/helpdesk?schema=public
+      DATABASE_URL: postgresql://helpdesk_runtime:helpdesk@db:5432/helpdesk?schema=public
+      DATABASE_ADMIN_URL: postgresql://helpdesk:helpdesk@db:5432/helpdesk?schema=public
       SHADOW_DATABASE_URL: postgresql://helpdesk:helpdesk@db:5432/helpdesk_shadow?schema=public
       REDIS_URL: redis://redis:6379
       AUTH_URL: http://localhost:3001
@@ -27,6 +28,30 @@ services:
       - /app/src/generated
       - uploads:/app/uploads
     depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      target: dev
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://helpdesk_runtime:helpdesk@db:5432/helpdesk?schema=public
+      REDIS_URL: redis://redis:6379
+    # The dev image entrypoint runs migrations and the seed; the app service
+    # owns that, so the worker skips it and only regenerates the client.
+    entrypoint: ['sh', '-c', 'npx prisma generate && npx tsx watch src/worker/index.ts']
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/src/generated
+    depends_on:
+      app:
+        condition: service_started
       db:
         condition: service_healthy
       redis:

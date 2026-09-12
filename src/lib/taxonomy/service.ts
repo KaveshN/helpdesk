@@ -1,6 +1,5 @@
 import type { Prisma } from '@/generated/prisma/client';
-import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import { auditDiff, recordAudit, type AuditActor } from '@/lib/audit';
 import { requireCapability } from '@/lib/authz/guard';
 import type { Actor, GroupContext } from '@/lib/authz/actor';
@@ -65,7 +64,7 @@ export async function saveCategory(ctx: Ctx, input: CategoryInput) {
   const before = input.id ? await scoped.category.findFirst({ where: { id: input.id } }) : null;
   if (input.id && !before) throw new NotFoundError('Category not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     const result = input.id
       ? await tx.category.update({
           where: { id: input.id, helpDeskGroupId },
@@ -122,7 +121,7 @@ export async function saveSubCategory(ctx: Ctx, input: SubCategoryInput) {
   const before = input.id ? await scoped.subCategory.findFirst({ where: { id: input.id } }) : null;
   if (input.id && !before) throw new NotFoundError('Subcategory not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     const result = input.id
       ? await tx.subCategory.update({
           where: { id: input.id, helpDeskGroupId },
@@ -178,7 +177,7 @@ export async function saveStatus(ctx: Ctx, input: StatusInput) {
     }
   }
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     // Exactly one default: clearing the others here keeps the invariant that
     // groupDefaults() always resolves to something sensible.
     if (input.isDefault) {
@@ -234,7 +233,7 @@ export async function savePriority(ctx: Ctx, input: PriorityInput) {
   const before = input.id ? await scoped.priority.findFirst({ where: { id: input.id } }) : null;
   if (input.id && !before) throw new NotFoundError('Priority not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     if (input.isDefault) {
       await tx.priority.updateMany({
         where: { helpDeskGroupId, isDefault: true, ...(input.id ? { id: { not: input.id } } : {}) },
@@ -276,7 +275,7 @@ export async function saveTicketType(ctx: Ctx, input: TicketTypeInput) {
   const before = input.id ? await scoped.ticketType.findFirst({ where: { id: input.id } }) : null;
   if (input.id && !before) throw new NotFoundError('Ticket type not found');
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     if (input.isDefault) {
       await tx.ticketType.updateMany({
         where: { helpDeskGroupId, isDefault: true, ...(input.id ? { id: { not: input.id } } : {}) },

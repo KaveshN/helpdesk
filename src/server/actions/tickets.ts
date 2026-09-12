@@ -9,7 +9,7 @@ import {
   watcherSchema,
 } from '@/lib/tickets/schemas';
 import { addComment, createTicket, updateTicket } from '@/lib/tickets/service';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import { db } from '@/lib/db/client';
 import { TicketEventType } from '@/generated/prisma/enums';
 import { requireCapability } from '@/lib/authz/guard';
@@ -132,7 +132,7 @@ export async function addWatcherAction(formData: FormData): Promise<ActionResult
       });
     }
 
-    await db().$transaction(async (tx) => {
+    await scopedTransaction(helpDeskGroupId, async (tx) => {
       await tx.ticketWatcher.upsert({
         where: { ticketId_userId: { ticketId: ticket.id, userId: parsed.data.userId } },
         create: {
@@ -176,7 +176,7 @@ export async function removeWatcherAction(formData: FormData): Promise<ActionRes
     });
     if (!existing) throw new NotFoundError('That person is not watching this ticket');
 
-    await db().$transaction(async (tx) => {
+    await scopedTransaction(helpDeskGroupId, async (tx) => {
       await tx.ticketWatcher.delete({ where: { id: existing.id } });
       await tx.ticketEvent.create({
         data: {

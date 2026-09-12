@@ -1,34 +1,45 @@
+import type { Prisma } from '@/generated/prisma/client';
 import { TenancyViolationError } from '@/lib/errors';
 import { db } from '@/lib/db/client';
 
 /**
  * GROUP ISOLATION (brief §8).
  *
- * `scopedDb(groupId)` returns a Prisma client that rewrites every query against
- * a tenant table so it can only ever see or touch one help desk group. The goal
- * is that leaking data across groups requires deliberately reaching around this
- * layer, rather than merely forgetting a `where` clause.
+ * Two layers, and they agree on the same model classification below:
  *
- * KNOWN GAPS -- read before trusting this blindly:
- *  1. `$queryRaw` / `$executeRaw` bypass extensions entirely. Raw SQL against a
- *     tenant table must filter on helpDeskGroupId by hand.
- *  2. Nested writes (`data: { comments: { create: {...} } }`) are not rewritten;
- *     the extension only sees the top-level model. Set helpDeskGroupId
- *     explicitly on nested rows -- the columns are NOT NULL, so you will get a
- *     loud failure rather than a silent cross-group row.
- *  3. Relation filters (`where: { ticket: { ... } }`) are not rewritten either.
- *     They are still safe: the top-level scope narrows the result set first.
- *  4. The ownership pre-check for single-row writes reads through the unscoped
- *     client, i.e. outside any caller-supplied interactive transaction. A row
- *     created and then updated inside the same transaction is therefore not yet
- *     visible to the check; set helpDeskGroupId explicitly in that case (which
- *     the ticket service does anyway).
+ *  1. Prisma query rewriting. `scopedDb(groupId)` returns a client that ANDs
+ *     `helpDeskGroupId = groupId` onto every read and forces the column onto
+ *     every create, so leaking data across groups requires deliberately
+ *     reaching around this layer rather than merely forgetting a `where`.
  *
- * The durable fix for (1) and (2) is Postgres row-level security with a
- * per-transaction `SET LOCAL app.current_group_id`. That is worth doing before
- * this platform holds data for groups that must not see each other for legal
- * reasons; it is deliberately out of scope for Phase 1.
+ *  2. Postgres row-level security. Every scoped operation, raw query and
+ *     `scopedTransaction()` runs inside a transaction that starts with
+ *     `SET LOCAL ROLE helpdesk_app` and `set_config('app.current_group_id',
+ *     …, true)`. The policies in the shared_calendars_and_rls migration then
+ *     filter rows in the database, which covers what (1) cannot see: raw SQL,
+ *     nested writes, and relation filters. With no group set the app role
+ *     sees nothing, so a forgotten scope fails closed rather than open.
+ *
+ * REMAINING GAPS -- read before trusting this blindly:
+ *  - The unscoped `db()` client runs as the platform role and bypasses RLS.
+ *    That is intended for platform-level code (auth, Super Admin, audit) and
+ *    for transactions that set `helpDeskGroupId` explicitly on every row. Do
+ *    not reach for it inside a group-level service; use `scopedTransaction`.
+ *  - The ownership pre-check for single-row writes reads through the unscoped
+ *    client, i.e. outside any caller-supplied transaction. A row created and
+ *    then updated inside the same transaction is therefore not yet visible to
+ *    the check; RLS still rejects a cross-group row at commit time.
+ *  - Detecting "already inside an interactive transaction" uses Prisma's
+ *    `__internalParams.transaction`, which is not public API. If it ever
+ *    disappears, every scoped read inside `scopedDb(g).$transaction` would
+ *    open a nested batch and `scripts/verify-rls.ts` fails loudly.
  */
+
+/** Postgres roles created by the RLS migration. */
+export const APP_ROLE = 'helpdesk_app';
+export const PLATFORM_ROLE = 'helpdesk_platform';
+/** Transaction-local setting the policies read. */
+export const GROUP_SETTING = 'app.current_group_id';
 
 /** Tables whose `helpDeskGroupId` is NOT NULL. Must match schema.prisma. */
 export const GROUP_SCOPED_MODELS = new Set([
@@ -40,9 +51,6 @@ export const GROUP_SCOPED_MODELS = new Set([
   'SubCategory',
   'SlaPolicy',
   'SlaTarget',
-  'Calendar',
-  'WorkingHours',
-  'Holiday',
   'AfterHoursConfig',
   'AfterHoursContact',
   'Workflow',
@@ -93,8 +101,17 @@ export const STRICT_NULLABLE_COLUMN_MODELS = new Set(['InboundEmail']);
 /**
  * Tables where `helpDeskGroupId IS NULL` means "platform-global": readable from
  * every group, writable only through the unscoped client (a Super Admin action).
+ *
+ * Calendars (with their hours and holidays) joined this set on 2026-09-12 so
+ * one "South Africa business hours" calendar can serve several groups.
  */
-export const GLOBAL_OR_GROUP_MODELS = new Set(['KnowledgeArticle', 'ArticleCategory']);
+export const GLOBAL_OR_GROUP_MODELS = new Set([
+  'KnowledgeArticle',
+  'ArticleCategory',
+  'Calendar',
+  'WorkingHours',
+  'Holiday',
+]);
 
 /**
  * Platform tables the scope never touches. Listed explicitly so that adding a
@@ -123,6 +140,8 @@ const UNIQUE_WRITE_OPERATIONS = new Set(['update', 'delete', 'upsert']);
 const BATCH_WRITE_OPERATIONS = new Set(['updateMany', 'updateManyAndReturn', 'deleteMany']);
 
 const CREATE_OPERATIONS = new Set(['create', 'createMany', 'createManyAndReturn']);
+
+const RAW_METHODS = new Set(['$queryRaw', '$queryRawUnsafe', '$executeRaw', '$executeRawUnsafe']);
 
 type AnyArgs = Record<string, unknown>;
 
@@ -248,14 +267,7 @@ export function rewriteOperation(input: {
   });
 }
 
-/**
- * A Prisma client locked to one help desk group.
- *
- * Note that `HelpDeskMembership` is in the scoped set, so resolving *which*
- * groups a user belongs to must use the unscoped `db()` -- see
- * src/lib/auth/memberships.ts.
- */
-export function scopedDb(groupId: string) {
+function assertGroupId(groupId: string): void {
   if (!groupId) {
     throw new TenancyViolationError({
       model: '(any)',
@@ -264,14 +276,65 @@ export function scopedDb(groupId: string) {
       actual: null,
     });
   }
+}
+
+type RawRunner = Pick<Prisma.TransactionClient, '$executeRaw' | '$executeRawUnsafe'>;
+
+/**
+ * The two statements that put a transaction into tenant mode. `SET LOCAL` and
+ * `set_config(..., true)` both end with the transaction, so a pooled
+ * connection never carries one request's group into the next.
+ */
+function scopeStatements(client: RawRunner, groupId: string) {
+  return [
+    client.$executeRawUnsafe(`SET LOCAL ROLE ${APP_ROLE}`),
+    client.$executeRaw`SELECT set_config(${GROUP_SETTING}, ${groupId}, true)`,
+  ] as const;
+}
+
+async function enterScope(tx: Prisma.TransactionClient, groupId: string): Promise<void> {
+  await tx.$executeRawUnsafe(`SET LOCAL ROLE ${APP_ROLE}`);
+  await tx.$executeRaw`SELECT set_config(${GROUP_SETTING}, ${groupId}, true)`;
+}
+
+/**
+ * An interactive transaction that Postgres itself scopes to one group.
+ *
+ * Use this, not `db().$transaction`, for every group-level write: rows still
+ * need `helpDeskGroupId` set explicitly (the transaction client does not
+ * rewrite queries), but a wrong or missing value is now rejected by the
+ * database with a row-level security error instead of being stored.
+ */
+export async function scopedTransaction<T>(
+  groupId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number },
+): Promise<T> {
+  assertGroupId(groupId);
+  return db().$transaction(async (tx) => {
+    await enterScope(tx, groupId);
+    return fn(tx);
+  }, options);
+}
+
+/**
+ * A Prisma client locked to one help desk group.
+ *
+ * Note that `HelpDeskMembership` is in the scoped set, so resolving *which*
+ * groups a user belongs to must use the unscoped `db()` -- see
+ * src/lib/auth/session.ts.
+ */
+export function scopedDb(groupId: string) {
+  assertGroupId(groupId);
 
   const base = db();
 
-  return base.$extends({
+  const extended = base.$extends({
     name: `helpDeskGroupScope(${groupId})`,
     query: {
       $allModels: {
-        async $allOperations({ model, operation, args, query }) {
+        async $allOperations(params) {
+          const { model, operation, args, query } = params;
           const mode = scopeModeFor(model);
           if (!mode) return query(args);
 
@@ -292,21 +355,74 @@ export function scopedDb(groupId: string) {
             });
           }
 
-          if (rewritten.operation !== operation) {
-            // Re-enter through the base client so the substituted operation
-            // (findUnique -> findFirst) is actually dispatched.
-            const delegate = base[modelToDelegate(model) as keyof typeof base] as unknown as Record<
-              string,
-              (a: unknown) => Promise<unknown>
-            >;
-            return delegate[rewritten.operation]!(rewritten.args);
-          }
+          const dispatch = (): Prisma.PrismaPromise<unknown> => {
+            if (rewritten.operation !== operation) {
+              // Re-enter through the base client so the substituted operation
+              // (findUnique -> findFirst) is actually dispatched.
+              const delegate = base[
+                modelToDelegate(model) as keyof typeof base
+              ] as unknown as Record<string, (a: unknown) => Prisma.PrismaPromise<unknown>>;
+              return delegate[rewritten.operation]!(rewritten.args);
+            }
+            return query(rewritten.args) as Prisma.PrismaPromise<unknown>;
+          };
 
-          return query(rewritten.args);
+          // Inside a caller's interactive transaction the scope was set by the
+          // wrapped `$transaction` below; opening a nested batch here would run
+          // on a different connection, outside that transaction.
+          const inTransaction = Boolean(
+            (params as { __internalParams?: { transaction?: unknown } }).__internalParams
+              ?.transaction,
+          );
+          if (inTransaction) return dispatch();
+
+          const [, , result] = await base.$transaction([
+            ...scopeStatements(base, groupId),
+            dispatch(),
+          ]);
+          return result;
         },
       },
     },
   });
+
+  type Extended = typeof extended;
+
+  /** `$transaction` that enters the scope first, in both its forms. */
+  const transaction = ((input: unknown, options?: unknown) => {
+    if (typeof input === 'function') {
+      return extended.$transaction(async (tx) => {
+        await enterScope(tx as unknown as Prisma.TransactionClient, groupId);
+        return (input as (tx: unknown) => Promise<unknown>)(tx);
+      }, options as never);
+    }
+    const queries = input as Prisma.PrismaPromise<unknown>[];
+    return extended
+      .$transaction([...scopeStatements(extended, groupId), ...queries], options as never)
+      .then((results) => results.slice(2));
+  }) as Extended['$transaction'];
+
+  return new Proxy(extended, {
+    get(target, property, receiver) {
+      if (property === '$transaction') return transaction;
+
+      if (typeof property === 'string' && RAW_METHODS.has(property)) {
+        // Raw SQL runs as the app role with the group set, so the policies
+        // filter it. Gap (1) of the pre-RLS design is closed here.
+        return (...rawArgs: unknown[]) => {
+          const raw = (target as unknown as Record<string, (...a: unknown[]) => unknown>)[
+            property
+          ]!.apply(target, rawArgs) as Prisma.PrismaPromise<unknown>;
+          return base
+            .$transaction([...scopeStatements(base, groupId), raw])
+            .then((results) => results[2]);
+        };
+      }
+
+      const value = Reflect.get(target, property, receiver);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  }) as Extended;
 }
 
 /**

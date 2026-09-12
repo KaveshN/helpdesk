@@ -18,8 +18,10 @@ unanswered and block the rest of Phase 2.
 
 ```bash
 docker compose up -d db redis     # needs `newgrp docker` — see below
+                                  # existing cluster: create the runtime roles once, see README
 npm run db:deploy && npm run db:seed
 npm run dev                       # http://localhost:3001
+npm run worker:watch              # mailbox poll + outbound flush (BullMQ)
 npm run check                     # typecheck + lint + 86 tests
 ```
 
@@ -69,11 +71,17 @@ build. See the note in `src/app/globals.css`.
 ## Invariants — breaking these is a defect, not a style choice
 
 1. **Tenancy.** Every operational table carries `helpDeskGroupId`. Reads go
-   through `scopedDb(groupId)`. A new Prisma model **must** be classified in
-   `src/lib/db/scoped.ts` (strict / global-or-group / unscoped) or
-   `tests/scoped-db.test.ts` fails — that test reads `schema.prisma` on purpose.
-   Known gaps (raw SQL, nested writes) are documented in that module's header;
-   the durable fix is Postgres RLS, deliberately out of Phase 1 scope.
+   through `scopedDb(groupId)`; group-level write transactions go through
+   `scopedTransaction(groupId, fn)`, never `db().$transaction`. Both set
+   `SET LOCAL ROLE helpdesk_app` and `app.current_group_id`, so Postgres
+   row-level security filters raw SQL and nested writes too. `db()` is the
+   platform role and bypasses RLS: use it only for platform tables and Super
+   Admin paths. A new Prisma model **must** be classified in
+   `src/lib/db/scoped.ts` (strict / global-or-group / unscoped) **and** given
+   a policy in a migration, or `tests/scoped-db.test.ts` and
+   `tests/rls-migration.test.ts` fail. The app connects as `helpdesk_runtime`
+   (`DATABASE_URL`); only the Prisma CLI uses the owner (`DATABASE_ADMIN_URL`).
+   `npm run verify:rls` proves isolation against the seeded database.
 2. **Capabilities, never roles.** Nothing outside `src/lib/authz/` inspects a
    role. Use `can(actor, capability, groupId)` / `requireCapability`. `can`
    fails closed: a group capability with no group id is "no".

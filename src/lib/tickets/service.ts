@@ -1,7 +1,7 @@
 import { StatusCategory, TicketEventType, TicketSource } from '@/generated/prisma/enums';
 import type { Prisma } from '@/generated/prisma/client';
 import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import type { Actor, GroupContext } from '@/lib/authz/actor';
 import { canSeeInternalNotes, requireCapability, ticketVisibilityFilter } from '@/lib/authz/guard';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
@@ -244,7 +244,7 @@ export async function createTicket(
   if (input.assigneeId) await assertGroupMember(helpDeskGroupId, input.assigneeId, 'assigneeId');
   if (input.requesterId) await assertUserExists(input.requesterId, 'requesterId');
 
-  const ticket = await db().$transaction(async (tx) => {
+  const ticket = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const sequence = await claimTicketSequence(tx, helpDeskGroupId);
     const reference = formatTicketReference(group.groupKey, sequence);
 
@@ -370,7 +370,7 @@ export async function updateTicket(actor: Actor, group: GroupContext, input: Upd
 
   const events = buildChangeEvents(actor, helpDeskGroupId, existing, input, nextStatus, reopened);
 
-  const updated = await db().$transaction(async (tx) => {
+  const updated = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const result = await tx.ticket.update({
       where: { id: input.ticketId, helpDeskGroupId },
       data,
@@ -471,7 +471,7 @@ export async function addComment(actor: Actor, group: GroupContext, input: AddCo
   const isFirstResponse =
     !ticket.firstRespondedAt && !input.isInternal && ticket.requesterId !== actor.userId;
 
-  const comment = await db().$transaction(async (tx) => {
+  const comment = await scopedTransaction(helpDeskGroupId, async (tx) => {
     const created = await tx.ticketComment.create({
       data: {
         helpDeskGroupId,

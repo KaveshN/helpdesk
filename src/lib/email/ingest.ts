@@ -1,7 +1,7 @@
 import { TicketEventType, TicketSource } from '@/generated/prisma/enums';
 import type { Prisma } from '@/generated/prisma/client';
 import { db } from '@/lib/db/client';
-import { scopedDb } from '@/lib/db/scoped';
+import { scopedDb, scopedTransaction } from '@/lib/db/scoped';
 import { groupLogger } from '@/lib/logger';
 import { listMailboxDelta, markRead, sendMail } from '@/lib/graph/mail';
 import { graphConfigured } from '@/lib/graph/client';
@@ -203,7 +203,7 @@ async function ingestOne(input: {
     });
   }
 
-  return db().$transaction(async (tx) => {
+  return scopedTransaction(helpDeskGroupId, async (tx) => {
     const sender = await resolveSender(tx, helpDeskGroupId, parsed.fromEmail, parsed.fromName);
 
     const inbound = await tx.inboundEmail.create({

@@ -56,6 +56,17 @@ COPY prisma ./prisma
 COPY prisma.config.ts package.json ./
 CMD ["npx", "prisma", "migrate", "deploy"]
 
+# --- background worker ----------------------------------------------------
+# Runs src/worker via tsx on the full dependency tree. Small enough for now;
+# a bundled build can replace it if image size ever matters.
+FROM base AS worker
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npx prisma generate
+USER node
+CMD ["npx", "tsx", "src/worker/index.ts"]
+
 # --- production runtime ---------------------------------------------------
 FROM base AS runner
 # 3001 rather than Next's default 3000: the container, the host dev server and

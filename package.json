@@ -26,11 +26,15 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
+    "verify:rls": "tsx scripts/verify-rls.ts",
+    "worker": "tsx src/worker/index.ts",
+    "worker:watch": "tsx watch src/worker/index.ts",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "7.10.0",
+    "bullmq": "^6.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

@@ -34,10 +34,11 @@ not yet built — see [Roadmap](#roadmap).
 cp .env.example .env          # then generate a secret:
 openssl rand -base64 32       # paste into AUTH_SECRET
 
-docker compose up --build     # app on http://localhost:3001
+docker compose up --build     # app on http://localhost:3001, plus the worker
 ```
 
-The dev container applies migrations and runs the (idempotent) seed on start.
+The dev container applies migrations and runs the (idempotent) seed on start;
+the `worker` container runs the background jobs (mailbox poll, outbound mail).
 With `AUTH_DEV_LOGIN=true` you can sign in immediately as any seeded persona:
 
 | Email                               | Access                                                      |
@@ -135,23 +136,47 @@ Prisma client extension that rewrites every query against a tenant table:
   throws `TenancyViolationError`;
 - single-row writes (`update` / `delete` / `upsert`) run an ownership pre-check.
 
-**Known gaps, documented rather than hidden** (full detail in the module header):
+That is layer one. Layer two is **Postgres row-level security**: every
+scoped operation, raw query and `scopedTransaction()` runs inside a transaction
+that begins with `SET LOCAL ROLE helpdesk_app` and
+`set_config('app.current_group_id', …, true)`, and the policies in migration
+`shared_calendars_and_rls` filter rows in the database. What layer one cannot
+see — `$queryRaw`, nested writes, relation filters — is therefore still
+filtered, and with no group set the app role sees nothing, so a forgotten scope
+fails closed. `npm run verify:rls` proves this against the seeded database.
 
-1. `$queryRaw` / `$executeRaw` bypass extensions entirely.
-2. Nested writes (`data: { comments: { create: … } }`) are not rewritten — the
-   extension only sees the top-level model. The columns are `NOT NULL`, so the
-   failure is loud rather than silent, and the ticket service sets them by hand.
-3. The ownership pre-check reads outside a caller's interactive transaction.
-
-The durable fix for 1 and 2 is Postgres row-level security with a
-per-transaction `SET LOCAL app.current_group_id`, which no application bug can
-bypass. That is worth doing **before** this platform holds data for groups that
-must not see each other for legal or regulatory reasons. It is deliberately out
-of scope for Phase 1.
+The one remaining gap: the ownership pre-check for single-row writes reads
+outside a caller's interactive transaction. RLS still rejects a cross-group row
+at commit time, so the effect is a less helpful error, not a leak.
 
 A test reads `schema.prisma` and fails if any model is not explicitly classified
 as strictly scoped, global-or-group, or unscoped — so adding a table without
 deciding how it is tenanted breaks CI instead of leaking quietly.
+
+### Database roles
+
+| Role                | Login | Purpose                                                                                                                |
+| ------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| `helpdesk`          | yes   | Schema owner. Prisma CLI only (`DATABASE_ADMIN_URL`): migrations, studio. Owners bypass RLS, so the app never uses it. |
+| `helpdesk_platform` | no    | Sees every row. `db()` runs as this through the runtime login. Platform tables, Super Admin, auth.                     |
+| `helpdesk_app`      | no    | Policy-filtered by `app.current_group_id`. `scopedDb()` / `scopedTransaction()` `SET LOCAL ROLE` into it.              |
+| `helpdesk_runtime`  | yes   | What the app and worker connect as (`DATABASE_URL`). Member of `helpdesk_platform`, hence of `helpdesk_app`.           |
+
+The migration creates the two NOLOGIN roles and grants table privileges; the
+LOGIN user is a deployment concern. A fresh compose cluster gets it from
+`docker/postgres-init/02-runtime-roles.sql`. On an existing cluster run once:
+
+```sql
+CREATE ROLE helpdesk_platform NOLOGIN;   -- skip if the migration already made them
+CREATE ROLE helpdesk_app NOLOGIN;
+GRANT helpdesk_app TO helpdesk_platform;
+CREATE ROLE helpdesk_runtime LOGIN PASSWORD '…';
+GRANT helpdesk_platform TO helpdesk_runtime;
+```
+
+`src/instrumentation.ts` inspects the runtime role at start-up and refuses to
+serve in production if it is a superuser or lacks those memberships; in
+development it logs a warning instead.
 
 ### Permissions
 
@@ -331,16 +356,17 @@ disagree with the data is worse than none.
 | 1 — Auth, groups, memberships, ticket CRUD, switcher, dashboard | **Done**                                                                                                  |
 | 2 — SLA policies, notifications, after-hours                    | **Calculator done** (`src/lib/sla/`, 48 tests); persistence, breach sweeps and mail transport outstanding |
 | 3 — Knowledge base (Tiptap, versioning, publish)                | Modelled                                                                                                  |
-| 4 — Reporting, scheduled reports, multi-group dashboard         | Modelled                                                                                                  |
-| 5 — Change management + CAB                                     | Modelled                                                                                                  |
-| 6 — Workflow rules, email-to-ticket                             | Modelled                                                                                                  |
-| 7 — Gamification / CSAT                                         | Modelled, lowest priority                                                                                 |
+| 4 — Reporting, scheduled reports, multi-group dashboard         | **Reports and per-group overview done**; scheduled delivery waits for the mail transport                  |
+| 5 — Change management + CAB                                     | **Done**                                                                                                  |
+| 6 — Workflow rules, email-to-ticket                             | Email-to-ticket built (Graph delta poll, worker); workflow runner modelled                                |
+| 7 — Gamification / CSAT                                         | Leaderboard done; CSAT capture modelled                                                                   |
 
 "Modelled" means the tables, enums and relations exist and are migrated, so
 later phases add behaviour without destructive migrations.
 
 See [`OPEN-QUESTIONS.md`](./OPEN-QUESTIONS.md) for the decisions that need your
-input before Phase 2.
+input before Phase 2, and [`DESIGN_REVIEW.md`](./DESIGN_REVIEW.md) for how the
+BRS design draft maps onto what is built.
 
 ---
 
