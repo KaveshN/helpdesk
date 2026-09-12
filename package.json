@@ -26,6 +26,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
+    "db:demo": "tsx scripts/demo-data.ts",
     "verify:rls": "tsx scripts/verify-rls.ts",
     "worker": "tsx src/worker/index.ts",
     "worker:watch": "tsx watch src/worker/index.ts",

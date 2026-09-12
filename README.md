@@ -37,6 +37,13 @@ openssl rand -base64 32       # paste into AUTH_SECRET
 docker compose up --build     # app on http://localhost:3001, plus the worker
 ```
 
+Then, for a populated demo rather than four tickets per group:
+
+```bash
+npm run db:demo               # 50 tickets, 12 changes, comments, CSAT, spread over ~60 days
+npm run db:demo -- --reset    # remove and reload it
+```
+
 The dev container applies migrations and runs the (idempotent) seed on start;
 the `worker` container runs the background jobs (mailbox poll, outbound mail).
 With `AUTH_DEV_LOGIN=true` you can sign in immediately as any seeded persona:

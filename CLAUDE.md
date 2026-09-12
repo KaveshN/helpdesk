@@ -20,6 +20,7 @@ unanswered and block the rest of Phase 2.
 docker compose up -d db redis     # needs `newgrp docker` — see below
                                   # existing cluster: create the runtime roles once, see README
 npm run db:deploy && npm run db:seed
+npm run db:demo                   # optional: realistic demo data (scripts/demo-data.ts)
 npm run dev                       # http://localhost:3001
 npm run worker:watch              # mailbox poll + outbound flush (BullMQ)
 npm run check                     # typecheck + lint + 86 tests
