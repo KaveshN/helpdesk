@@ -13,7 +13,7 @@ export function EmptyState({
     <div className="flex flex-col items-center px-6 py-14 text-center">
       <Inbox className="size-7 text-faint" aria-hidden strokeWidth={1.5} />
       <p className="mt-3 font-medium">{title}</p>
-      {hint ? <p className="mt-1 max-w-sm text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-1 max-w-sm text-muted-foreground">{hint}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );

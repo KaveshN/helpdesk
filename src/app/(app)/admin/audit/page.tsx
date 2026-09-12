@@ -54,7 +54,7 @@ export default async function AuditPage({
     <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Audit trail</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           {actor.isSuperAdmin
             ? `Every administrative change across the platform (${total} entries).`
             : `Administrative changes in ${group?.groupName} (${total} entries).`}
@@ -81,23 +81,23 @@ export default async function AuditPage({
             </thead>
             <tbody className="divide-y divide-border">
               {entries.map((entry) => (
-                <tr key={entry.id} className="align-top hover:bg-subtle">
-                  <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted">
+                <tr key={entry.id} className="align-top hover:bg-muted">
+                  <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-muted-foreground">
                     {entry.createdAt.toISOString().slice(0, 19).replace('T', ' ')}
                   </td>
                   <td className="px-4 py-2 text-foreground">{entry.actorEmail}</td>
                   <td className="px-4 py-2 font-mono text-xs">{entry.action}</td>
-                  <td className="px-4 py-2 text-muted">{entry.entityType}</td>
-                  <td className="px-4 py-2 text-muted">
+                  <td className="px-4 py-2 text-muted-foreground">{entry.entityType}</td>
+                  <td className="px-4 py-2 text-muted-foreground">
                     {entry.group ? entry.group.key : <span className="text-faint">platform</span>}
                   </td>
                   <td className="px-4 py-2">
                     {entry.before || entry.after ? (
                       <details>
-                        <summary className="cursor-pointer text-xs text-muted">
+                        <summary className="cursor-pointer text-xs text-muted-foreground">
                           before / after
                         </summary>
-                        <pre className="mt-1 max-w-md overflow-x-auto rounded bg-subtle p-2 text-[11px] leading-tight">
+                        <pre className="mt-1 max-w-md overflow-x-auto rounded bg-muted p-2 text-[11px] leading-tight">
                           {JSON.stringify({ before: entry.before, after: entry.after }, null, 2)}
                         </pre>
                       </details>
@@ -114,7 +114,7 @@ export default async function AuditPage({
 
       {totalPages > 1 ? (
         <nav className="flex items-center justify-between text-sm" aria-label="Pagination">
-          <span className="text-muted">
+          <span className="text-muted-foreground">
             Page {page} of {totalPages}
           </span>
           <div className="flex gap-2">

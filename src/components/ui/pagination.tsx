@@ -31,7 +31,7 @@ export function Pagination({
 
   return (
     <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Pagination">
-      <span className="text-[0.8125rem] text-muted">
+      <span className="text-sm text-muted-foreground">
         <span className="tabular">
           {from}–{to}
         </span>{' '}

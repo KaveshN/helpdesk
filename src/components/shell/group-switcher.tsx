@@ -61,20 +61,20 @@ export function GroupSwitcher({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup={canSwitch ? 'listbox' : undefined}
-        className="flex w-full items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition hover:bg-subtle disabled:cursor-default disabled:hover:bg-card"
+        className="flex w-full items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition hover:bg-muted disabled:cursor-default disabled:hover:bg-card"
       >
         <span
-          className="grid size-7 shrink-0 place-items-center rounded-md text-[0.6875rem] font-bold tracking-tight"
-          style={{ background: 'var(--accent-subtle)', color: 'var(--accent)' }}
+          className="grid size-7 shrink-0 place-items-center rounded-md text-2xs font-bold tracking-tight"
+          style={{ background: 'var(--primary-subtle)', color: 'var(--primary)' }}
           aria-hidden
         >
           {active?.key.slice(0, 3) ?? <Building2 className="size-4" />}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[0.8125rem] font-semibold">
+          <span className="block truncate text-sm font-semibold">
             {active?.name ?? 'No help desk'}
           </span>
-          <span className="block truncate text-[0.6875rem] text-muted">
+          <span className="block truncate text-2xs text-muted-foreground">
             {active?.role ? ROLE_LABEL[active.role] : 'Super Administrator'}
           </span>
         </span>
@@ -102,16 +102,16 @@ export function GroupSwitcher({
                   role="option"
                   aria-selected={group.id === activeGroupId}
                   onClick={() => select(group.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-subtle"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-muted"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.8125rem]">{group.name}</span>
-                    <span className="block truncate font-mono text-[0.6875rem] text-faint">
+                    <span className="block truncate text-sm">{group.name}</span>
+                    <span className="block truncate font-mono text-2xs text-faint">
                       {group.key}
                     </span>
                   </span>
                   {group.id === activeGroupId ? (
-                    <Check className="size-4 shrink-0" style={{ color: 'var(--accent)' }} />
+                    <Check className="size-4 shrink-0" style={{ color: 'var(--primary)' }} />
                   ) : null}
                 </button>
               </li>

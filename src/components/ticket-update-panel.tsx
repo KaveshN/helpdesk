@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { updateTicketAction } from '@/server/actions/tickets';
 import { FieldError, FormMessage } from '@/components/ui/form-message';
 
@@ -32,6 +33,10 @@ export function TicketUpdatePanel({
   canAssign: boolean;
 }) {
   const [state, formAction, pending] = useActionState(updateTicketAction, undefined);
+
+  useEffect(() => {
+    if (state?.ok) toast.success('Ticket updated');
+  }, [state]);
 
   return (
     <form action={formAction} className="card space-y-4 p-4">
@@ -128,7 +133,6 @@ export function TicketUpdatePanel({
       <button type="submit" className="btn-primary w-full" disabled={pending}>
         {pending ? 'Saving…' : 'Save changes'}
       </button>
-      {state?.ok ? <p className="text-xs text-success">Saved.</p> : null}
     </form>
   );
 }

@@ -79,7 +79,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <nav className="text-sm text-muted">
+      <nav className="text-sm text-muted-foreground">
         <Link href="/tickets" className="underline">
           Tickets
         </Link>
@@ -90,7 +90,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{ticket.subject}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Pill label={ticket.status.name} colour={ticket.status.colour} />
             <Pill label={ticket.priority.name} colour={ticket.priority.colour} />
             <span>{ticket.type.name}</span>
@@ -103,7 +103,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             </span>
           </div>
         </div>
-        <dl className="text-right text-xs text-muted">
+        <dl className="text-right text-xs text-muted-foreground">
           <dt className="sr-only">Reference</dt>
           <dd className="font-mono text-sm text-foreground">{ticket.reference}</dd>
           <dt className="mt-1 sr-only">Help desk</dt>
@@ -123,7 +123,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               Conversation ({ticket.comments.length})
             </h2>
             {ticket.comments.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted">No replies yet.</p>
+              <p className="px-4 py-6 text-sm text-muted-foreground">No replies yet.</p>
             ) : (
               ticket.comments.map((comment) => (
                 <article
@@ -131,7 +131,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   className="px-4 py-3"
                   style={comment.isInternal ? { background: 'var(--warning-subtle)' } : undefined}
                 >
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">{comment.author.name}</span>
                     <span>{formatDateTime(comment.createdAt)}</span>
                     {comment.isInternal ? (
@@ -159,7 +159,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                 />
               </div>
             ) : (
-              <p className="px-4 py-4 text-sm text-muted">
+              <p className="px-4 py-4 text-sm text-muted-foreground">
                 You have read-only access to this ticket.
               </p>
             )}
@@ -169,7 +169,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             <h2 className="panel-title">Activity</h2>
             <ol className="mt-3 space-y-2 text-sm">
               {ticket.events.map((event) => (
-                <li key={event.id} className="flex flex-wrap gap-2 text-muted">
+                <li key={event.id} className="flex flex-wrap gap-2 text-muted-foreground">
                   <span className="font-mono text-xs text-faint">
                     {formatDateTime(event.createdAt)}
                   </span>
@@ -250,7 +250,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           {can(actor, 'change:create', group.helpDeskGroupId) ? (
             <div className="card p-4 text-sm">
               <h2 className="panel-title">Change management</h2>
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-xs text-muted-foreground">
                 If fixing this needs a controlled change, raise one. It gets its own reference and
                 approval path &mdash; this ticket keeps its own lifecycle.
               </p>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 /** Segmented view switcher. Scrolls horizontally rather than wrapping on mobile. */
 export function FilterTabs({
@@ -32,12 +33,12 @@ export function FilterTabs({
             key={option.value}
             href={href(option.value)}
             aria-current={active ? 'true' : undefined}
-            className={`rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium whitespace-nowrap transition ${
+            className={cn(
+              'rounded-lg border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition',
               active
-                ? 'bg-card text-foreground shadow-[var(--shadow-card)]'
-                : 'text-muted hover:bg-subtle hover:text-foreground'
-            }`}
-            style={active ? { border: '1px solid var(--border)' } : undefined}
+                ? 'border-border bg-card text-foreground shadow-[var(--shadow-card)]'
+                : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
           >
             {option.label}
           </Link>

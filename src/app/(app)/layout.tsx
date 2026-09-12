@@ -107,14 +107,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Offset by the rail on desktop; full bleed below it. The content column
           fills the viewport rather than sitting in a fixed-width page. */}
-      <div className="lg:pl-[15.5rem]">
+      <div className="lg:pl-[var(--sidebar-width)]">
         <main className="page-max page-x py-6 lg:py-8">
           {group ? (
             children
           ) : (
             <div className="card mx-auto max-w-lg p-6">
               <h1 className="text-base font-semibold">No help desk yet</h1>
-              <p className="mt-2 text-muted">
+              <p className="mt-2 text-muted-foreground">
                 Your account exists but is not a member of any help desk group. A Super
                 Administrator needs to add you to one before you can see tickets.
               </p>

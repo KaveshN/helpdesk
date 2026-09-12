@@ -65,10 +65,10 @@ export default async function LoginPage({
           form below the fold. */}
       <aside
         className="relative hidden flex-col justify-between p-10 lg:flex"
-        style={{ background: 'var(--subtle)' }}
+        style={{ background: 'var(--muted)' }}
       >
         <div className="flex items-center gap-2">
-          <LifeBuoy className="size-5" style={{ color: 'var(--accent)' }} aria-hidden />
+          <LifeBuoy className="size-5" style={{ color: 'var(--primary)' }} aria-hidden />
           <span className="font-semibold tracking-tight">Help Desk</span>
         </div>
 
@@ -76,7 +76,7 @@ export default async function LoginPage({
           <h2 className="text-2xl font-semibold tracking-tight">
             One platform, many independent help desks.
           </h2>
-          <p className="mt-3 text-muted">
+          <p className="mt-3 text-muted-foreground">
             Each group runs its own queues, categories, SLAs, calendars, change advisory boards and
             reporting. Administration is central; configuration is not.
           </p>
@@ -87,8 +87,8 @@ export default async function LoginPage({
               ['Never merged', 'Reporting'],
             ].map(([label, value]) => (
               <div key={value}>
-                <dt className="text-[0.6875rem] tracking-wider text-faint uppercase">{label}</dt>
-                <dd className="mt-1 text-[0.8125rem] font-medium">{value}</dd>
+                <dt className="text-2xs tracking-wider text-faint uppercase">{label}</dt>
+                <dd className="mt-1 text-sm font-medium">{value}</dd>
               </div>
             ))}
           </dl>
@@ -100,21 +100,21 @@ export default async function LoginPage({
       <div className="flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <LifeBuoy className="size-5" style={{ color: 'var(--accent)' }} aria-hidden />
+            <LifeBuoy className="size-5" style={{ color: 'var(--primary)' }} aria-hidden />
             <span className="font-semibold tracking-tight">Help Desk</span>
           </div>
 
           <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-muted">Your groups and roles are assigned by an administrator.</p>
+          <p className="mt-1 text-muted-foreground">Your groups and roles are assigned by an administrator.</p>
 
           {error ? (
             <div
               role="alert"
               className="mt-6 flex items-start gap-2 rounded-lg border px-3 py-2.5"
               style={{
-                background: 'var(--danger-subtle)',
-                color: 'var(--danger)',
-                borderColor: 'color-mix(in oklch, var(--danger) 30%, transparent)',
+                background: 'var(--destructive-subtle)',
+                color: 'var(--destructive)',
+                borderColor: 'color-mix(in oklch, var(--destructive) 30%, transparent)',
               }}
             >
               <AlertCircle className="mt-px size-4 shrink-0" aria-hidden />
@@ -141,7 +141,7 @@ export default async function LoginPage({
             )}
 
             {methods.entra && methods.devLogin ? (
-              <div className="flex items-center gap-3 text-[0.6875rem] tracking-wider text-faint uppercase">
+              <div className="flex items-center gap-3 text-2xs tracking-wider text-faint uppercase">
                 <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
                 or
                 <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
@@ -163,7 +163,7 @@ export default async function LoginPage({
                     placeholder="agent@example.com"
                     className="input"
                   />
-                  <p className="mt-1.5 text-xs text-muted">
+                  <p className="mt-1.5 text-xs text-muted-foreground">
                     Seeded users only — this provider never creates accounts, and refuses to load
                     when <code>NODE_ENV=production</code>.
                   </p>

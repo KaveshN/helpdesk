@@ -4,6 +4,7 @@ import { db } from '@/lib/db/client';
 import { can } from '@/lib/authz/guard';
 import { summariseGroup, type GroupOverview } from '@/lib/reports/overview';
 import { NoPermission } from '@/components/no-permission';
+import { TONE_TEXT, type Tone } from '@/lib/design/tones';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'All help desks' };
@@ -16,20 +17,14 @@ function Metric({
 }: {
   label: string;
   value: number | null;
-  tone?: 'neutral' | 'warning' | 'danger' | 'good';
+  tone?: Tone;
   suffix?: string;
 }) {
-  const tones = {
-    neutral: 'text-foreground',
-    warning: 'text-warning',
-    danger: 'text-danger',
-    good: 'text-success',
-  } as const;
 
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold tabular-nums ${tones[tone]}`}>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`mt-1 text-2xl font-semibold tabular-nums ${TONE_TEXT[tone]}`}>
         {value === null ? <span className="text-faint">—</span> : `${value}${suffix ?? ''}`}
       </div>
     </div>
@@ -42,9 +37,9 @@ function GroupPanel({ overview }: { overview: GroupOverview }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold">
           {overview.groupName}
-          <span className="ml-2 font-mono text-xs font-normal text-muted">{overview.groupKey}</span>
+          <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">{overview.groupKey}</span>
         </h2>
-        <span className="text-xs text-muted">{overview.timeZone}</span>
+        <span className="text-xs text-muted-foreground">{overview.timeZone}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 2xl:grid-cols-4">
@@ -54,11 +49,11 @@ function GroupPanel({ overview }: { overview: GroupOverview }) {
           value={overview.unassignedTickets}
           tone={overview.unassignedTickets > 0 ? 'warning' : 'neutral'}
         />
-        <Metric label="Resolved (30d)" value={overview.resolvedLast30} tone="good" />
+        <Metric label="Resolved (30d)" value={overview.resolvedLast30} tone="success" />
         <Metric
           label="SLA breached"
           value={overview.slaBreached}
-          tone={overview.slaBreached > 0 ? 'danger' : 'neutral'}
+          tone={overview.slaBreached > 0 ? 'destructive' : 'neutral'}
         />
         <Metric
           label="Response met"
@@ -129,7 +124,7 @@ export default async function OverviewPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">All help desks</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             {groups.length} help desk{groups.length === 1 ? '' : 's'}, each summarised separately.
           </p>
         </div>
@@ -138,7 +133,7 @@ export default async function OverviewPage() {
         </Link>
       </header>
 
-      <p className="rounded-md border bg-subtle px-4 py-3 text-xs text-muted">
+      <p className="rounded-md border bg-muted px-4 py-3 text-xs text-muted-foreground">
         There is deliberately no platform-wide total. Adding one group&rsquo;s SLA attainment to
         another&rsquo;s produces a figure that describes neither &mdash; each help desk has its own
         calendar, priorities and targets. Compare the panels; do not sum them.

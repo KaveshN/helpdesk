@@ -4,7 +4,10 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { Mail, MessageSquareLock } from 'lucide-react';
 import { addCommentAction } from '@/server/actions/tickets';
 import { replyByEmailAction } from '@/server/actions/email';
+import { toast } from 'sonner';
 import { FieldError, FormMessage } from '@/components/ui/form-message';
+import { TONE_CALLOUT } from '@/lib/design/tones';
+import { cn } from '@/lib/utils';
 
 /**
  * Two genuinely different actions behind one composer.
@@ -37,10 +40,16 @@ export function TicketReplyBox({
   const noteForm = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (emailState?.ok) emailForm.current?.reset();
+    if (emailState?.ok) {
+      emailForm.current?.reset();
+      toast.success('Reply recorded and queued for delivery from the help desk mailbox');
+    }
   }, [emailState]);
   useEffect(() => {
-    if (noteState?.ok) noteForm.current?.reset();
+    if (noteState?.ok) {
+      noteForm.current?.reset();
+      toast.success('Internal note added');
+    }
   }, [noteState]);
 
   const tabs = [
@@ -63,8 +72,8 @@ export function TicketReplyBox({
                 key={tab.id}
                 type="button"
                 onClick={() => setMode(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[0.8125rem] font-medium transition ${
-                  active ? 'bg-subtle text-foreground' : 'text-muted hover:bg-subtle'
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <tab.icon className="size-4" aria-hidden />
@@ -81,10 +90,7 @@ export function TicketReplyBox({
           <FormMessage result={emailState} />
 
           {!mailboxConfigured ? (
-            <p
-              className="rounded-lg px-3 py-2 text-xs"
-              style={{ background: 'var(--warning-subtle)', color: 'var(--warning)' }}
-            >
+            <p className={cn('rounded-lg border px-3 py-2 text-xs', TONE_CALLOUT.warning)}>
               This help desk has no Exchange Online mailbox configured, so the reply will be
               recorded on the ticket but cannot be delivered.
             </p>
@@ -94,7 +100,7 @@ export function TicketReplyBox({
             <label className="label" htmlFor="reply-body">
               Reply{' '}
               {requesterEmail ? (
-                <span className="font-normal text-muted">to {requesterEmail}</span>
+                <span className="font-normal text-muted-foreground">to {requesterEmail}</span>
               ) : null}
             </label>
             <textarea
@@ -127,11 +133,6 @@ export function TicketReplyBox({
             </button>
           </div>
 
-          {emailState?.ok ? (
-            <p className="text-xs" style={{ color: 'var(--success)' }}>
-              Reply recorded and queued for delivery from the help desk mailbox.
-            </p>
-          ) : null}
         </form>
       ) : null}
 

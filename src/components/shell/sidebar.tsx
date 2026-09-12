@@ -6,8 +6,11 @@ import { usePathname } from 'next/navigation';
 import { LifeBuoy, LogOut, Menu, X } from 'lucide-react';
 import { GroupSwitcher } from '@/components/shell/group-switcher';
 import { Icon } from '@/components/shell/icon';
+import { AppearanceMenu } from '@/components/theme/appearance-menu';
 import type { NavSection } from '@/components/shell/nav-items';
 import type { GroupSummary } from '@/lib/auth/session';
+import { brand } from '@/config/brand';
+import { cn } from '@/lib/utils';
 
 /**
  * Application shell navigation.
@@ -16,6 +19,9 @@ import type { GroupSummary } from '@/lib/auth/session';
  * by Linear, Height and the Vercel dashboard. The rail is fixed and the content
  * column is offset by its width, so long tables scroll without taking the
  * navigation with them.
+ *
+ * Rebuilt in the shell redesign step (collapsible rail, command palette,
+ * top bar). This revision only moves it onto the new tokens.
  */
 export function Sidebar({
   sections,
@@ -47,8 +53,8 @@ export function Sidebar({
   const nav = (
     <div className="flex h-full flex-col gap-4 p-3">
       <div className="flex items-center gap-2 px-1 pt-1">
-        <LifeBuoy className="size-5" style={{ color: 'var(--accent)' }} aria-hidden />
-        <span className="text-[0.9375rem] font-semibold tracking-tight">Help Desk</span>
+        <LifeBuoy className="size-5 text-primary" aria-hidden />
+        <span className="text-base font-semibold tracking-tight">{brand.productName}</span>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -65,7 +71,7 @@ export function Sidebar({
         {sections.map((section, index) => (
           <div key={section.title ?? `section-${index}`} className="space-y-0.5">
             {section.title ? (
-              <h2 className="px-2 pb-1 text-[0.6875rem] font-semibold tracking-wider text-faint uppercase">
+              <h2 className="px-2 pb-1 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
                 {section.title}
               </h2>
             ) : null}
@@ -79,32 +85,28 @@ export function Sidebar({
                   // handle the event, don't sync state to it.
                   onClick={() => setOpen(false)}
                   aria-current={active ? 'page' : undefined}
-                  className={`group flex items-center gap-2.5 rounded-lg px-2 py-[0.4375rem]
-                    text-[0.8125rem] font-medium transition ${
-                      active
-                        ? 'bg-subtle text-foreground'
-                        : 'text-muted hover:bg-subtle hover:text-foreground'
-                    }`}
+                  className={cn(
+                    'group relative flex items-center gap-2.5 rounded-lg px-2 py-[0.4375rem] text-sm font-medium transition',
+                    active
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
                 >
                   <Icon
                     name={item.icon}
-                    className={`size-[1.0625rem] shrink-0 ${active ? '' : 'text-faint group-hover:text-muted'}`}
+                    className={cn(
+                      'size-[1.0625rem] shrink-0',
+                      active ? '' : 'text-faint group-hover:text-muted-foreground',
+                    )}
                   />
                   <span className="flex-1 truncate">{item.label}</span>
                   {item.badge ? (
-                    <span
-                      className="rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular"
-                      style={{ background: 'var(--warning-subtle)', color: 'var(--warning)' }}
-                    >
+                    <span className="rounded-full bg-warning-subtle px-1.5 py-0.5 text-2xs font-semibold text-warning tabular">
                       {item.badge}
                     </span>
                   ) : null}
                   {active ? (
-                    <span
-                      aria-hidden
-                      className="absolute left-0 h-5 w-0.5 rounded-r"
-                      style={{ background: 'var(--accent)' }}
-                    />
+                    <span aria-hidden className="absolute left-0 h-5 w-0.5 rounded-r bg-primary" />
                   ) : null}
                 </Link>
               );
@@ -114,10 +116,9 @@ export function Sidebar({
       </nav>
 
       <div className="border-t pt-3">
-        <div className="flex items-center gap-2.5 px-1">
+        <div className="flex items-center gap-2 px-1">
           <span
-            className="grid size-7 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold"
-            style={{ background: 'var(--subtle)', color: 'var(--muted)' }}
+            className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground"
             aria-hidden
           >
             {user.name
@@ -128,9 +129,10 @@ export function Sidebar({
               .toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.8125rem] font-medium">{user.name}</span>
-            <span className="block truncate text-[0.6875rem] text-faint">{user.role}</span>
+            <span className="block truncate text-sm font-medium">{user.name}</span>
+            <span className="block truncate text-2xs text-muted-foreground">{user.role}</span>
           </span>
+          <AppearanceMenu align="end" />
           <form action={signOut}>
             <button
               type="submit"
@@ -158,9 +160,9 @@ export function Sidebar({
         >
           <Menu className="size-5" />
         </button>
-        <LifeBuoy className="size-4" style={{ color: 'var(--accent)' }} aria-hidden />
-        <span className="truncate text-[0.8125rem] font-semibold">
-          {groups.find((group) => group.id === activeGroupId)?.name ?? 'Help Desk'}
+        <LifeBuoy className="size-4 text-primary" aria-hidden />
+        <span className="truncate text-sm font-semibold">
+          {groups.find((group) => group.id === activeGroupId)?.name ?? brand.productName}
         </span>
       </header>
 
@@ -170,13 +172,15 @@ export function Sidebar({
           type="button"
           aria-label="Close navigation"
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 cursor-default bg-black/40 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 cursor-default bg-foreground/40 backdrop-blur-[1px] lg:hidden"
         />
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[15.5rem] border-r bg-card transition-transform
-          duration-200 ease-out lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-[var(--sidebar-width)] border-r bg-card transition-transform duration-200 ease-out lg:translate-x-0',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
         aria-label="Sidebar"
       >
         {nav}

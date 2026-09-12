@@ -52,7 +52,7 @@ export function ChangeLifecycleActions({
       {error ? (
         <p
           role="alert"
-          className="rounded-md border bg-danger-subtle px-3 py-2 text-sm text-danger"
+          className="rounded-md border bg-destructive-subtle px-3 py-2 text-sm text-destructive"
         >
           {error}
         </p>

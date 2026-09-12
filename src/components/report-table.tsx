@@ -14,7 +14,7 @@ export function ReportTable({ report }: { report: ReportResult }) {
   return (
     <div className="space-y-3">
       {report.notes?.length ? (
-        <ul className="list-inside list-disc rounded-md border bg-subtle px-4 py-3 text-xs text-muted">
+        <ul className="list-inside list-disc rounded-md border bg-muted px-4 py-3 text-xs text-muted-foreground">
           {report.notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
@@ -23,7 +23,7 @@ export function ReportTable({ report }: { report: ReportResult }) {
 
       <div className="card overflow-x-auto">
         {report.rows.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">No data for this period.</p>
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">No data for this period.</p>
         ) : (
           <table className="data-table w-full min-w-[720px] text-sm">
             <thead>
@@ -40,7 +40,7 @@ export function ReportTable({ report }: { report: ReportResult }) {
             </thead>
             <tbody className="divide-y divide-border">
               {report.rows.map((row, index) => (
-                <tr key={index} className="hover:bg-subtle">
+                <tr key={index} className="hover:bg-muted">
                   {report.columns.map((column) => (
                     <td
                       key={column.key}
@@ -53,7 +53,7 @@ export function ReportTable({ report }: { report: ReportResult }) {
               ))}
             </tbody>
             {report.totals ? (
-              <tfoot className="border-t-2 bg-subtle font-medium">
+              <tfoot className="border-t-2 bg-muted font-medium">
                 <tr>
                   {report.columns.map((column) => (
                     <td
@@ -70,7 +70,7 @@ export function ReportTable({ report }: { report: ReportResult }) {
         )}
       </div>
 
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted-foreground">
         Generated {report.generatedAt.toISOString().slice(0, 16).replace('T', ' ')} · period{' '}
         {report.periodFrom.toISOString().slice(0, 10)} to{' '}
         {report.periodTo.toISOString().slice(0, 10)}

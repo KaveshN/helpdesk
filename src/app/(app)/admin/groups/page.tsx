@@ -37,7 +37,7 @@ export default async function AdminGroupsPage() {
     <div className="space-y-8">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Help desk groups</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           Each group is an independent help desk: its own queues, taxonomy, SLAs, calendars and
           reporting. Administration is central; configuration is not.
         </p>
@@ -58,22 +58,22 @@ export default async function AdminGroupsPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {groups.map((group) => (
-              <tr key={group.id} className="hover:bg-subtle">
+              <tr key={group.id} className="hover:bg-muted">
                 <td className="px-4 py-2 font-medium">
                   <Link href={`/admin/groups/${group.id}`} className="underline">
                     {group.name}
                   </Link>
                 </td>
                 <td className="px-4 py-2 font-mono text-xs">{group.key}</td>
-                <td className="px-4 py-2 text-muted">{group.timeZone}</td>
+                <td className="px-4 py-2 text-muted-foreground">{group.timeZone}</td>
                 <td className="px-4 py-2 tabular-nums">{group._count.memberships}</td>
                 <td className="px-4 py-2 tabular-nums">{group._count.tickets}</td>
-                <td className="px-4 py-2 text-muted">{group.inboundEmailAddress ?? '—'}</td>
+                <td className="px-4 py-2 text-muted-foreground">{group.inboundEmailAddress ?? '—'}</td>
                 <td className="px-4 py-2">
                   {group.isActive ? (
                     <span className="text-success">Active</span>
                   ) : (
-                    <span className="text-muted">Inactive</span>
+                    <span className="text-muted-foreground">Inactive</span>
                   )}
                 </td>
               </tr>
@@ -84,7 +84,7 @@ export default async function AdminGroupsPage() {
 
       <section className="card p-5 xl:max-w-4xl">
         <h2 className="text-base font-semibold">Create a help desk</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">
+        <p className="mt-1 mb-4 text-sm text-muted-foreground">
           Creating a group also provisions its statuses, priorities, types, a business-hours
           calendar, notification templates and a default SLA policy, so it can accept a ticket
           immediately.
@@ -120,7 +120,7 @@ export default async function AdminGroupsPage() {
                 className="input font-mono uppercase"
                 placeholder="KEN"
               />
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Prefixes every ticket number, e.g. KEN-000123. Cannot be reused.
               </p>
             </div>
@@ -146,7 +146,7 @@ export default async function AdminGroupsPage() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-muted">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Drives working hours and SLA arithmetic for this group.
               </p>
             </div>
@@ -175,7 +175,7 @@ export default async function AdminGroupsPage() {
                 className="input"
                 placeholder="kenya-helpdesk@example.com"
               />
-              <p className="mt-1 text-xs text-muted">Used by email-to-ticket in Phase 6.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Used by email-to-ticket in Phase 6.</p>
             </div>
             <div>
               <label className="label" htmlFor="outboundEmailAddress">

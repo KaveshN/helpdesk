@@ -167,7 +167,7 @@ export function TicketCreateForm({
         <button type="submit" className="btn-primary" disabled={pending}>
           {pending ? 'Creating…' : 'Create ticket'}
         </button>
-        <span className="text-[0.8125rem] text-muted">
+        <span className="text-sm text-muted-foreground">
           The reference is issued from this help desk&rsquo;s own sequence.
         </span>
       </div>

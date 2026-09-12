@@ -43,7 +43,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="grid gap-5 xl:grid-cols-2">
-      <nav className="text-sm text-muted">
+      <nav className="text-sm text-muted-foreground">
         {actor.isSuperAdmin ? (
           <>
             <Link href="/admin/groups" className="underline">
@@ -57,7 +57,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
 
       <header>
         <h1 className="text-xl font-semibold tracking-tight">{group.name}</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           <span className="font-mono">{group.key}</span> &middot; {group.timeZone} &middot;{' '}
           {group.isActive ? 'active' : 'inactive'}
         </p>
@@ -65,7 +65,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
 
       <section className="card p-5">
         <h2 className="text-base font-semibold">Members and roles</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">
+        <p className="mt-1 mb-4 text-sm text-muted-foreground">
           Roles are per group. The same person can be an agent here and an administrator elsewhere.
           Changing a role revokes that person&rsquo;s active sessions immediately.
         </p>
@@ -82,7 +82,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
           <tbody className="divide-y divide-border">
             {members.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-2 py-6 text-center text-muted">
+                <td colSpan={4} className="px-2 py-6 text-center text-muted-foreground">
                   No members yet.
                 </td>
               </tr>
@@ -92,12 +92,12 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
                   <td className="px-2 py-2">
                     {membership.user.name}
                     {membership.user.platformRole === 'SUPER_ADMIN' ? (
-                      <span className="ml-2 rounded bg-subtle px-1.5 py-0.5 text-xs">
+                      <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs">
                         Super Admin
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-2 py-2 text-muted">{membership.user.email}</td>
+                  <td className="px-2 py-2 text-muted-foreground">{membership.user.email}</td>
                   <td className="px-2 py-2">{ROLE_LABELS[membership.role] ?? membership.role}</td>
                   <td className="px-2 py-2 text-right">
                     <ConfirmForm
@@ -123,7 +123,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
                   Email address
                 </label>
                 <input id="email" name="email" type="email" required className="input" />
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs text-muted-foreground">
                   An unknown address creates a placeholder user, linked to their Entra identity the
                   first time they sign in.
                 </p>
@@ -154,7 +154,7 @@ export default async function GroupDetailPage({ params }: { params: Promise<{ id
       {canEditSettings ? (
         <section className="card p-5">
           <h2 className="text-base font-semibold">Group settings</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">
             Every change here is written to the audit trail with before and after values.
           </p>
 

@@ -95,7 +95,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <nav className="text-sm text-muted">
+      <nav className="text-sm text-muted-foreground">
         <Link href="/changes" className="underline">
           Change requests
         </Link>
@@ -106,7 +106,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">{change.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <ChangeStatusBadge status={change.status} />
             <Pill label={change.riskLevel.name} colour={change.riskLevel.colour} />
             <span>{change.changeType.name}</span>
@@ -119,7 +119,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
             </span>
           </div>
         </div>
-        <dl className="text-right text-xs text-muted">
+        <dl className="text-right text-xs text-muted-foreground">
           <dt className="sr-only">Reference</dt>
           <dd className="font-mono text-sm text-foreground">{change.reference}</dd>
           <dd>{group.groupName}</dd>
@@ -149,20 +149,20 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="panel-title">
                   {change.cab.name}
-                  <span className="ml-2 text-xs font-normal text-muted">
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
                     {change.cab.approvalMode === 'QUORUM'
                       ? `quorum of ${change.cab.quorum}`
                       : change.cab.approvalMode.toLowerCase().replace(/_/g, ' ')}
                   </span>
                 </h2>
                 {standing ? (
-                  <span className="text-xs text-muted">
+                  <span className="text-xs text-muted-foreground">
                     {standing.approvals} approved / {standing.required} required
                   </span>
                 ) : null}
               </div>
 
-              {standing ? <p className="mt-1 text-xs text-muted">{standing.reason}</p> : null}
+              {standing ? <p className="mt-1 text-xs text-muted-foreground">{standing.reason}</p> : null}
 
               <table className="data-table mt-3 w-full text-sm">
                 <thead>
@@ -177,7 +177,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                   {change.approvals.map((approval) => (
                     <tr key={approval.id}>
                       <td className="px-2 py-2">{approval.approver.name}</td>
-                      <td className="px-2 py-2 text-xs text-muted">
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
                         {approval.isChair ? 'Chair' : approval.isVoting ? 'Voting' : 'Non-voting'}
                       </td>
                       <td className="px-2 py-2">
@@ -186,8 +186,8 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                             approval.decision === 'APPROVED'
                               ? 'text-success'
                               : approval.decision === 'REJECTED'
-                                ? 'text-danger'
-                                : 'text-muted'
+                                ? 'text-destructive'
+                                : 'text-muted-foreground'
                           }
                         >
                           {DECISION_LABEL[approval.decision]}
@@ -198,7 +198,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-2 py-2 text-xs text-muted">{approval.comment ?? '—'}</td>
+                      <td className="px-2 py-2 text-xs text-muted-foreground">{approval.comment ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -209,7 +209,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
           {canVote ? (
             <section className="card p-4">
               <h2 className="panel-title">Your CAB decision</h2>
-              <p className="mt-1 mb-3 text-xs text-muted">
+              <p className="mt-1 mb-3 text-xs text-muted-foreground">
                 {myApproval
                   ? 'You are on this board.'
                   : 'You are recording a decision as a help desk administrator rather than a board member.'}
@@ -222,7 +222,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
             <h2 className="panel-title">Lifecycle</h2>
             <ol className="mt-3 space-y-2 text-sm">
               {change.events.map((event) => (
-                <li key={event.id} className="flex flex-wrap gap-2 text-muted">
+                <li key={event.id} className="flex flex-wrap gap-2 text-muted-foreground">
                   <span className="font-mono text-xs text-faint">
                     {formatDateTime(event.createdAt)}
                   </span>
@@ -232,7 +232,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                     </span>{' '}
                     {event.type.toLowerCase().replace(/_/g, ' ')}
                     {event.newValue ? (
-                      <span className="text-muted"> — {event.newValue}</span>
+                      <span className="text-muted-foreground"> — {event.newValue}</span>
                     ) : null}
                   </span>
                 </li>
@@ -251,7 +251,7 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                 transitions={transitions}
               />
               {change.status === ChangeStatus.DRAFT ? (
-                <p className="mt-3 text-xs text-muted">
+                <p className="mt-3 text-xs text-muted-foreground">
                   Submitting needs an implementation plan and a rollback plan.
                   {change.riskLevel.minimumNoticeHours > 0 ? (
                     <>
@@ -300,18 +300,18 @@ export default async function ChangeDetailPage({ params }: { params: Promise<{ i
                     <Link href={`/tickets/${ticket.id}`} className="font-mono text-xs underline">
                       {ticket.reference}
                     </Link>
-                    <span className="ml-2 text-muted">{ticket.subject}</span>
+                    <span className="ml-2 text-muted-foreground">{ticket.subject}</span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-xs text-muted-foreground">
                 A citation, not ownership: these tickets keep their own lifecycle.
               </p>
             </div>
           ) : null}
 
           {isEditable(change.status) && can(actor, 'change:update', group.helpDeskGroupId) ? (
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               This change is still editable. Once submitted it is locked, because the CAB votes on
               what it read.
             </p>

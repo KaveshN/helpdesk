@@ -42,13 +42,13 @@ export default async function ChangeConfigPage() {
     <div className="space-y-10">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Change configuration</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           The change module&rsquo;s own taxonomy and boards for{' '}
           <span className="font-medium">{group.groupName}</span> &mdash; separate from the ticket
           configuration, and separate from every other help desk.
         </p>
         {!canEditTaxonomy && !canEditCab ? (
-          <p className="mt-2 rounded-md bg-subtle px-3 py-2 text-sm text-foreground">
+          <p className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
             You can view this configuration but not change it.
           </p>
         ) : null}
@@ -58,7 +58,7 @@ export default async function ChangeConfigPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Risk levels</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Level 1 is the highest risk. <strong>Requires CAB</strong> is what actually gates
             approval, and the notice period is the lead time expected before the planned start.
           </p>
@@ -69,17 +69,17 @@ export default async function ChangeConfigPage() {
             <details key={risk.id} className="px-4 py-3">
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <Pill label={risk.name} colour={risk.colour} />
-                <span className="text-muted">level {risk.level}</span>
+                <span className="text-muted-foreground">level {risk.level}</span>
                 {risk.requiresCab ? (
                   <span className="text-xs font-medium text-warning">CAB required</span>
                 ) : (
-                  <span className="text-xs text-muted">no CAB</span>
+                  <span className="text-xs text-muted-foreground">no CAB</span>
                 )}
                 {risk.minimumNoticeHours > 0 ? (
-                  <span className="text-xs text-muted">{risk.minimumNoticeHours}h notice</span>
+                  <span className="text-xs text-muted-foreground">{risk.minimumNoticeHours}h notice</span>
                 ) : null}
-                {risk.isDefault ? <span className="text-xs text-muted">default</span> : null}
-                {!risk.isActive ? <span className="text-xs text-danger">inactive</span> : null}
+                {risk.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {!risk.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 
               {canEditTaxonomy ? (
@@ -217,7 +217,7 @@ export default async function ChangeConfigPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Change Advisory Boards</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             A CAB is scoped to this help desk. Risk levels routed here decide which changes it sees;
             a change at a risk level with no CAB cannot be submitted.
           </p>
@@ -228,10 +228,10 @@ export default async function ChangeConfigPage() {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold">
                 {cab.name}
-                {cab.isDefault ? <span className="ml-2 text-xs text-muted">default</span> : null}
-                {!cab.isActive ? <span className="ml-2 text-xs text-danger">inactive</span> : null}
+                {cab.isDefault ? <span className="ml-2 text-xs text-muted-foreground">default</span> : null}
+                {!cab.isActive ? <span className="ml-2 text-xs text-destructive">inactive</span> : null}
               </h3>
-              <span className="text-xs text-muted">
+              <span className="text-xs text-muted-foreground">
                 {cab.approvalMode === 'QUORUM'
                   ? `quorum of ${cab.quorum}`
                   : cab.approvalMode.toLowerCase().replace(/_/g, ' ')}
@@ -278,9 +278,9 @@ export default async function ChangeConfigPage() {
                     <tr key={member.id}>
                       <td className="px-2 py-2">
                         {member.user.name}
-                        <span className="ml-2 text-xs text-muted">{member.user.email}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{member.user.email}</span>
                       </td>
-                      <td className="px-2 py-2 text-xs text-muted">
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
                         {member.isChair ? 'Chair · ' : ''}
                         {member.isVoting ? 'Voting' : 'Non-voting'}
                       </td>
@@ -318,7 +318,7 @@ export default async function ChangeConfigPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-muted">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Must already be a member of this help desk.
                       </p>
                     </div>
@@ -493,7 +493,7 @@ export default async function ChangeConfigPage() {
         <div className="space-y-4">
           <div>
             <h2 className="text-base font-semibold">Change types</h2>
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted-foreground">
               A <strong>pre-approved</strong> type skips the CAB regardless of risk &mdash;
               ITIL&rsquo;s standard change.
             </p>
@@ -507,8 +507,8 @@ export default async function ChangeConfigPage() {
                   {type.isPreApproved ? (
                     <span className="text-xs text-success">pre-approved</span>
                   ) : null}
-                  {type.isDefault ? <span className="text-xs text-muted">default</span> : null}
-                  {!type.isActive ? <span className="text-xs text-danger">inactive</span> : null}
+                  {type.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                  {!type.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
                 </summary>
                 {canEditTaxonomy ? (
                   <div className="mt-4">
@@ -601,7 +601,7 @@ export default async function ChangeConfigPage() {
         <div className="space-y-4">
           <div>
             <h2 className="text-base font-semibold">Change categories</h2>
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted-foreground">
               The change module&rsquo;s own categories &mdash; not the ticket categories.
             </p>
           </div>
@@ -612,7 +612,7 @@ export default async function ChangeConfigPage() {
                 <summary className="flex cursor-pointer flex-wrap items-center gap-2 text-sm">
                   <span className="font-medium">{category.name}</span>
                   {!category.isActive ? (
-                    <span className="text-xs text-danger">inactive</span>
+                    <span className="text-xs text-destructive">inactive</span>
                   ) : null}
                 </summary>
                 {canEditTaxonomy ? (

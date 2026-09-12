@@ -21,14 +21,11 @@ export function NoPermission({
 }) {
   return (
     <div className="card mx-auto max-w-lg p-6 text-center">
-      <span
-        className="mx-auto grid size-10 place-items-center rounded-full"
-        style={{ background: 'var(--subtle)' }}
-      >
-        <Lock className="size-4 text-muted" aria-hidden />
+      <span className="mx-auto grid size-10 place-items-center rounded-full bg-muted">
+        <Lock className="size-4 text-muted-foreground" aria-hidden />
       </span>
-      <h1 className="mt-4 text-base font-semibold">{title}</h1>
-      <p className="mt-2 text-muted">
+      <h1 className="mt-4 text-lg font-semibold">{title}</h1>
+      <p className="mt-2 text-muted-foreground">
         {detail ??
           'Your role in this help desk does not include this action. Ask a help desk administrator if you need it.'}
       </p>

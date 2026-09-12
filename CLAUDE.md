@@ -99,13 +99,33 @@ build. See the note in `src/app/globals.css`.
 
 ## Design system
 
-Tokens in `src/app/globals.css` (shadcn/Radix names, OKLCH values, dark mode via
-`prefers-color-scheme`). Use the semantic utilities — `bg-card`, `text-muted`,
-`text-faint`, `border`, `text-danger` — never raw Tailwind palette classes like
-`text-slate-600`; a bulk migration removed them all and reintroducing one breaks
-dark mode.
+Tokens in `src/app/globals.css` (exact shadcn/ui names, OKLCH values, dark mode
+via `data-theme` on `<html>` from the `hd.theme` cookie — never a media query).
+Documented in `DESIGN_TOKENS.md`; rebranding in `THEMING.md`. Use the semantic
+utilities — `bg-card`, `text-muted-foreground`, `text-faint`, `border`,
+`text-destructive` — never raw Tailwind palette classes like `text-slate-600`,
+and never `style={{ color: … }}`; the one sanctioned inline style is the
+database-driven `colour` on `Pill`. `tests/design-tokens.test.ts` fails if a
+token drops below WCAG AA in either theme.
 
-- Layout is an app shell: `Sidebar` + `lg:pl-[15.5rem]` content column. Pages
+- shadcn/ui primitives live in `src/components/ui/` (`Button`, `Badge`,
+  `Dialog`, `AlertDialog`, `DropdownMenu`, `Tabs`, `Command`, `Sheet`, `Sonner`,
+  `Tooltip`, `Skeleton`, `Separator`). The `.btn-*` and `.input` CSS classes
+  predate them and go away page by page; do not add new uses.
+- Every semantic colour mapping is in `src/lib/design/tones.ts`. Never write
+  `bg-warning-subtle text-warning` in a component; index `TONE_CHIP` /
+  `TONE_TEXT` / `TONE_CALLOUT` by a `Tone`.
+- Success feedback is a Sonner toast; errors stay inline (`FormMessage`).
+  Destructive confirmations use `ConfirmForm` (AlertDialog), never
+  `window.confirm`.
+- Type scale: `text-2xs` 11 / `xs` 12 / `sm` 13 / `base` 14 / `lg` 16 / `xl`
+  20 / `2xl` 24. No `text-[…rem]`.
+- Density: rows and controls use `py-row` / `py-control`, which read the
+  `--density` multiplier, not fixed `py-*`.
+- Dates go through `src/lib/format/date.ts` with the group time zone;
+  `slaCountdown()` there is the only green→amber→red SLA logic.
+
+- Layout is an app shell: `Sidebar` + `lg:pl-[var(--sidebar-width)]` content column. Pages
   render their own `PageHeader`; they do not re-centre themselves in a narrow
   column.
 - Colour is signal. Chrome stays neutral; red/amber/green mean SLA, risk or

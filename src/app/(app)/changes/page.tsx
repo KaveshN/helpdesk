@@ -204,19 +204,19 @@ export default async function ChangesPage({
                       <td className="hidden md:table-cell">
                         <Pill label={change.riskLevel.name} colour={change.riskLevel.colour} />
                       </td>
-                      <td className="hidden text-muted xl:table-cell">
+                      <td className="hidden text-muted-foreground xl:table-cell">
                         {change.changeType.name}
                         {change.changeType.isPreApproved ? (
                           <span className="ml-1 text-xs text-success">pre-approved</span>
                         ) : null}
                       </td>
-                      <td className="hidden text-muted 2xl:table-cell">
+                      <td className="hidden text-muted-foreground 2xl:table-cell">
                         {change.cab?.name ?? '—'}
                       </td>
                       <td className="hidden whitespace-nowrap text-faint lg:table-cell">
                         {formatDate(change.plannedStartAt)}
                       </td>
-                      <td className="hidden text-muted 2xl:table-cell">{change.requester.name}</td>
+                      <td className="hidden text-muted-foreground 2xl:table-cell">{change.requester.name}</td>
                     </tr>
                   ))}
                 </tbody>

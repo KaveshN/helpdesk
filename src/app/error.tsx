@@ -29,7 +29,7 @@ export default function ErrorBoundary({
           strokeWidth={1.5}
         />
         <h1 className="mt-4 text-base font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-muted">
+        <p className="mt-2 text-muted-foreground">
           The action could not be completed. If this keeps happening, quote reference{' '}
           <code className="font-mono text-xs">{error.digest ?? 'n/a'}</code> to your administrator.
         </p>

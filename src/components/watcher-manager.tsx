@@ -40,7 +40,7 @@ export function WatcherManager({
       <h2 className="text-sm font-semibold text-foreground">Watchers</h2>
 
       {watchers.length === 0 ? (
-        <p className="text-sm text-muted">Nobody is watching this ticket.</p>
+        <p className="text-sm text-muted-foreground">Nobody is watching this ticket.</p>
       ) : (
         <ul className="space-y-2">
           {watchers.map((watcher) => (
@@ -49,7 +49,7 @@ export function WatcherManager({
               {canManage ? (
                 <button
                   type="button"
-                  className="text-xs text-danger underline disabled:opacity-50"
+                  className="text-xs text-destructive underline disabled:opacity-50"
                   disabled={pending}
                   onClick={() => submit(removeWatcherAction, watcher.userId)}
                 >

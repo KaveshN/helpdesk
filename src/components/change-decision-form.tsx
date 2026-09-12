@@ -67,7 +67,7 @@ export function ChangeDecisionForm({ changeRequestId }: { changeRequestId: strin
           Abstain
         </button>
       </div>
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted-foreground">
         Abstaining does not block the change: it removes you from the quorum calculation.
       </p>
     </form>

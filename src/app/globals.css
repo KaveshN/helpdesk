@@ -1,19 +1,35 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* ---------------------------------------------------------------------------
-   Design tokens.
+   Design tokens. Documented in DESIGN_TOKENS.md; brand overrides in
+   src/config/brand.ts (rendered as a <style> after this sheet, so they win).
 
-   Naming follows the shadcn/Radix convention (background/foreground/card/
-   muted/accent/border/ring) because it is widely understood and extends
-   cleanly. Colours are OKLCH: perceptually uniform, so every neutral at the
-   same lightness genuinely looks the same weight, and the dark theme is a
+   Naming is the shadcn/ui vocabulary exactly -- background/foreground, card,
+   popover, primary, secondary, muted, accent, destructive, border, input,
+   ring -- so every shadcn primitive reads the right variable without an
+   adapter. Four tokens are ours on top of that set: `faint` (tertiary,
+   decorative-only text), `border-strong`, the `*-subtle` tint surfaces, and
+   the semantic `success` / `warning` pair shadcn does not ship.
+
+   Values are OKLCH: perceptually uniform, so every neutral at the same
+   lightness genuinely looks the same weight, and the dark theme is a
    considered second palette rather than an inversion.
 
    COLOUR POLICY (borrowed from Linear, and it matters more here than it does
    there): the chrome is near-monochrome and carries a single accent. Red,
    amber and green are RESERVED for meaning -- SLA breach, risk level, ticket
    status. If the furniture is colourful, a P1 breach stops reading as urgent.
+
+   THEME SWITCHING: the server stamps `data-theme="light|dark"` on <html>
+   from the preference cookie; with no explicit choice a blocking inline
+   script resolves the OS preference before first paint (see
+   src/components/theme/theme-script.tsx). The `dark:` variant keys off the
+   same attribute, so shadcn's `dark:` utilities and these tokens agree.
+   tests/design-tokens.test.ts checks WCAG contrast for both palettes.
 --------------------------------------------------------------------------- */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @layer base {
   :root {
@@ -24,70 +40,94 @@
 
     --card: oklch(1 0 0);
     --card-foreground: var(--foreground);
-    /* One step in from --card, for table headers and inset panels. */
-    --subtle: oklch(0.968 0.004 264);
+    --popover: var(--card);
+    --popover-foreground: var(--foreground);
 
-    --muted: oklch(0.55 0.018 265);
-    --faint: oklch(0.68 0.015 265);
+    /* Inset surfaces: table headers, hover rows, secondary buttons. */
+    --muted: oklch(0.968 0.004 264);
+    --muted-foreground: oklch(0.535 0.018 265);
+    --secondary: var(--muted);
+    --secondary-foreground: var(--foreground);
+    /* Hover/active surface for menus and ghost buttons: one step past muted. */
+    --accent: oklch(0.95 0.005 264);
+    --accent-foreground: var(--foreground);
+    /* Tertiary. Decorative only (icons, dividers, placeholders): ~3.7:1 on
+       the page, which passes for UI components but not for body text. */
+    --faint: oklch(0.62 0.015 265);
 
     --border: oklch(0.918 0.006 265);
     --border-strong: oklch(0.855 0.008 265);
-    --input: oklch(0.995 0 0);
+    --input: var(--border);
 
-    --accent: oklch(0.52 0.204 276);
-    --accent-hover: oklch(0.46 0.2 276);
-    --accent-foreground: oklch(0.99 0 0);
-    --accent-subtle: oklch(0.958 0.024 276);
+    --primary: oklch(0.52 0.204 276);
+    --primary-hover: oklch(0.46 0.2 276);
+    --primary-foreground: oklch(0.99 0 0);
+    --primary-subtle: oklch(0.958 0.024 276);
     --ring: oklch(0.52 0.204 276 / 0.45);
 
     --success: oklch(0.52 0.13 155);
     --success-subtle: oklch(0.955 0.035 155);
-    --warning: oklch(0.58 0.13 72);
+    --warning: oklch(0.535 0.13 72);
     --warning-subtle: oklch(0.962 0.045 82);
-    --danger: oklch(0.53 0.2 25);
-    --danger-subtle: oklch(0.955 0.03 25);
+    --destructive: oklch(0.53 0.2 25);
+    --destructive-foreground: oklch(0.99 0 0);
+    --destructive-subtle: oklch(0.955 0.03 25);
 
     --shadow-card: 0 1px 2px oklch(0.21 0.02 265 / 0.05);
     --shadow-pop: 0 8px 24px oklch(0.21 0.02 265 / 0.1);
 
+    --radius: 0.5rem;
     --sidebar-width: 15.5rem;
+    --sidebar-width-collapsed: 3.5rem;
+
+    /* Density multiplier for row heights and control padding. Set from the
+       preference cookie as data-density on <html>. */
+    --density: 1;
   }
 
-  /* System preference drives the theme; no toggle to keep in sync. */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
+  :root[data-density='compact'] {
+    --density: 0.7;
+  }
 
-      --background: oklch(0.165 0.012 265);
-      --foreground: oklch(0.955 0.005 265);
+  :root[data-theme='dark'] {
+    color-scheme: dark;
 
-      --card: oklch(0.202 0.013 265);
-      --card-foreground: var(--foreground);
-      --subtle: oklch(0.238 0.014 265);
+    --background: oklch(0.165 0.012 265);
+    --foreground: oklch(0.955 0.005 265);
 
-      --muted: oklch(0.68 0.016 265);
-      --faint: oklch(0.55 0.016 265);
+    --card: oklch(0.202 0.013 265);
+    --card-foreground: var(--foreground);
+    --popover: var(--card);
+    --popover-foreground: var(--foreground);
 
-      --border: oklch(0.278 0.015 265);
-      --border-strong: oklch(0.35 0.018 265);
-      --input: oklch(0.238 0.014 265);
+    --muted: oklch(0.238 0.014 265);
+    --muted-foreground: oklch(0.68 0.016 265);
+    --secondary: var(--muted);
+    --secondary-foreground: var(--foreground);
+    --accent: oklch(0.265 0.015 265);
+    --accent-foreground: var(--foreground);
+    --faint: oklch(0.62 0.016 265);
 
-      --accent: oklch(0.66 0.18 277);
-      --accent-hover: oklch(0.72 0.17 277);
-      --accent-foreground: oklch(0.16 0.02 265);
-      --accent-subtle: oklch(0.28 0.06 277);
-      --ring: oklch(0.66 0.18 277 / 0.5);
+    --border: oklch(0.278 0.015 265);
+    --border-strong: oklch(0.35 0.018 265);
+    --input: var(--border);
 
-      --success: oklch(0.72 0.15 158);
-      --success-subtle: oklch(0.29 0.06 158);
-      --warning: oklch(0.78 0.14 78);
-      --warning-subtle: oklch(0.31 0.06 78);
-      --danger: oklch(0.68 0.18 24);
-      --danger-subtle: oklch(0.3 0.08 24);
+    --primary: oklch(0.66 0.18 277);
+    --primary-hover: oklch(0.72 0.17 277);
+    --primary-foreground: oklch(0.16 0.02 265);
+    --primary-subtle: oklch(0.28 0.06 277);
+    --ring: oklch(0.66 0.18 277 / 0.5);
 
-      --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
-      --shadow-pop: 0 12px 32px oklch(0 0 0 / 0.55);
-    }
+    --success: oklch(0.72 0.15 158);
+    --success-subtle: oklch(0.29 0.06 158);
+    --warning: oklch(0.78 0.14 78);
+    --warning-subtle: oklch(0.31 0.06 78);
+    --destructive: oklch(0.7 0.18 24);
+    --destructive-foreground: oklch(0.16 0.02 265);
+    --destructive-subtle: oklch(0.3 0.08 24);
+
+    --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+    --shadow-pop: 0 12px 32px oklch(0 0 0 / 0.55);
   }
 }
 
@@ -97,22 +137,55 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-subtle: var(--subtle);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-faint: var(--faint);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent-subtle: var(--accent-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-ring: var(--ring);
   --color-success: var(--success);
   --color-success-subtle: var(--success-subtle);
   --color-warning: var(--warning);
   --color-warning-subtle: var(--warning-subtle);
-  --color-danger: var(--danger);
-  --color-danger-subtle: var(--danger-subtle);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Type scale. A dense product, so `base` is 14px, not Tailwind's 16px:
+     2xs 11 / xs 12 / sm 13 / base 14 / lg 16 / xl 20 / 2xl 24 / 3xl 30. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial,
@@ -133,9 +206,8 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    /* 14px base: dense enough for tables, still readable in prose. */
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -146,18 +218,40 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--accent-subtle);
+    background: var(--primary-subtle);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Density-aware padding. Use these instead of fixed py-* on rows and
+   controls, so the compact preference actually tightens the table. */
+@utility py-row {
+  padding-block: calc(0.625rem * var(--density));
+}
+@utility py-control {
+  padding-block: calc(0.5rem * var(--density));
 }
 
 @layer components {
   /* NOTE (Tailwind 4): `@apply` takes real utilities only -- it cannot apply
-     one of these classes to another. Shared bases are grouped selectors. */
+     one of these classes to another. Shared bases are grouped selectors.
+
+     MIGRATION NOTE: `.btn-*` and `.input` predate the shadcn primitives.
+     New code uses <Button> and <Input>; these classes remain until the last
+     page that uses them is redesigned, then they go. */
 
   .card {
     @apply rounded-xl border bg-card;
@@ -165,24 +259,24 @@
   }
 
   .panel-title {
-    @apply text-[0.8125rem] font-semibold tracking-tight text-foreground;
+    @apply text-sm font-semibold tracking-tight text-foreground;
   }
 
   .label {
-    @apply mb-1.5 block text-[0.8125rem] font-medium text-foreground;
+    @apply mb-1.5 block text-sm font-medium text-foreground;
   }
 
   .input,
   .select,
   .textarea {
-    @apply w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground
+    @apply w-full rounded-lg border bg-card px-3 py-control text-sm text-foreground
       transition placeholder:text-faint
-      focus:border-accent focus:outline-none
+      focus:border-primary focus:outline-none
       disabled:cursor-not-allowed disabled:opacity-60;
   }
-  .input:focus,
-  .select:focus,
-  .textarea:focus {
+  .input:focus-visible,
+  .select:focus-visible,
+  .textarea:focus-visible {
     box-shadow: 0 0 0 3px var(--ring);
   }
 
@@ -191,56 +285,55 @@
   .btn-secondary,
   .btn-ghost,
   .btn-danger {
-    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2
-      text-[0.8125rem] font-medium whitespace-nowrap transition
+    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-control
+      text-sm font-medium whitespace-nowrap transition
       disabled:cursor-not-allowed disabled:opacity-55;
   }
   .btn-primary {
-    background-color: var(--accent);
-    color: var(--accent-foreground);
+    background-color: var(--primary);
+    color: var(--primary-foreground);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: var(--accent-hover);
+    background-color: var(--primary-hover);
   }
   .btn-secondary {
     @apply border bg-card text-foreground;
   }
   .btn-secondary:hover:not(:disabled) {
-    background-color: var(--subtle);
+    background-color: var(--muted);
     border-color: var(--border-strong);
   }
   .btn-ghost {
-    @apply text-muted;
+    @apply text-muted-foreground;
   }
   .btn-ghost:hover:not(:disabled) {
-    background-color: var(--subtle);
+    background-color: var(--accent);
     color: var(--foreground);
   }
   .btn-danger {
     @apply border;
-    border-color: color-mix(in oklch, var(--danger) 35%, transparent);
-    background-color: var(--danger-subtle);
-    color: var(--danger);
+    border-color: color-mix(in oklch, var(--destructive) 35%, transparent);
+    background-color: var(--destructive-subtle);
+    color: var(--destructive);
   }
   .btn-danger:hover:not(:disabled) {
-    border-color: var(--danger);
+    border-color: var(--destructive);
   }
 
   .field-error {
-    @apply mt-1.5 text-xs;
-    color: var(--danger);
+    @apply mt-1.5 text-xs text-destructive;
   }
 
-  /* Tables: sticky header, tight rows, quiet separators. */
+  /* Tables: sticky header, density-aware rows, quiet separators. */
   .data-table {
-    @apply w-full text-left text-[0.8125rem];
+    @apply w-full text-left text-sm;
   }
   .data-table thead th {
-    @apply sticky top-0 z-10 border-b bg-subtle px-4 py-2.5 text-[0.6875rem]
-      font-semibold tracking-wider text-muted uppercase;
+    @apply sticky top-0 z-10 border-b bg-muted px-4 py-row text-2xs
+      font-semibold tracking-wider text-muted-foreground uppercase;
   }
   .data-table tbody td {
-    @apply border-b px-4 py-2.5 align-middle;
+    @apply border-b px-4 py-row align-middle;
   }
   .data-table tbody tr:last-child td {
     @apply border-b-0;
@@ -249,29 +342,30 @@
     @apply transition-colors;
   }
   .data-table tbody tr:hover {
-    background-color: var(--subtle);
+    background-color: var(--muted);
   }
 
   /* Status chip: a coloured dot carries the meaning, the chip stays neutral. */
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5
-      text-[0.75rem] font-medium whitespace-nowrap;
+      text-xs font-medium whitespace-nowrap;
   }
 
   .link {
     @apply font-medium underline decoration-border underline-offset-2 transition;
   }
   .link:hover {
-    color: var(--accent);
-    text-decoration-color: var(--accent);
+    color: var(--primary);
+    text-decoration-color: var(--primary);
   }
 
   /* Key/value rows in detail sidebars. */
   .meta-row {
-    @apply flex items-baseline justify-between gap-3 py-1.5 text-[0.8125rem];
+    @apply flex items-baseline justify-between gap-3 text-sm;
+    padding-block: calc(0.375rem * var(--density));
   }
   .meta-row dt {
-    @apply shrink-0 text-muted;
+    @apply shrink-0 text-muted-foreground;
   }
   .meta-row dd {
     @apply text-right text-foreground;

@@ -253,11 +253,14 @@ An application shell, not a document: a persistent sidebar on `lg` and up that
 collapses to a drawer below it, and a content column that fills the viewport
 (capped at 120rem so a 4K monitor does not stretch a table to 3800px).
 
-Design tokens live in `src/app/globals.css`, named after the shadcn/Radix
-convention (`background/foreground/card/muted/accent/border/ring`) and written
-in OKLCH so the neutral ramp is perceptually even and the dark theme is a
-second considered palette rather than an inversion. Dark mode follows the
-system preference; there is no toggle to keep in sync.
+Design tokens live in `src/app/globals.css`, using the shadcn/ui vocabulary
+(`background/foreground/card/muted/primary/accent/destructive/border/ring`)
+and written in OKLCH so the neutral ramp is perceptually even and the dark
+theme is a second considered palette rather than an inversion. Light / dark /
+system and comfortable / compact density are per-user preferences held in
+cookies, stamped onto `<html>` by the server so there is no flash. Tokens are
+documented in `DESIGN_TOKENS.md`, rebranding in `THEMING.md`, and
+`tests/design-tokens.test.ts` enforces WCAG AA contrast for both palettes.
 
 **Colour carries meaning, not decoration.** The chrome is near-monochrome with a
 single accent. Red, amber and green are reserved for SLA breach, risk level and

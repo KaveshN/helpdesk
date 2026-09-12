@@ -75,12 +75,12 @@ export default async function ConfigurationPage() {
     <div className="space-y-10">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Configuration</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           Ticket taxonomy for <span className="font-medium">{group.groupName}</span>. These values
           belong to this help desk only &mdash; other groups have their own.
         </p>
         {readOnly ? (
-          <p className="mt-2 rounded-md bg-subtle px-3 py-2 text-sm text-foreground">
+          <p className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
             You can view this configuration but not change it.
           </p>
         ) : null}
@@ -90,7 +90,7 @@ export default async function ConfigurationPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Statuses</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Each status maps to a fixed semantic category so dashboards and the SLA engine
             understand it, whatever you call it.
           </p>
@@ -101,10 +101,10 @@ export default async function ConfigurationPage() {
             <details key={status.id} className="px-4 py-3">
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <Pill label={status.name} colour={status.colour} />
-                <span className="text-muted">{status.category}</span>
+                <span className="text-muted-foreground">{status.category}</span>
                 {status.pausesSla ? <span className="text-xs text-warning">pauses SLA</span> : null}
-                {status.isDefault ? <span className="text-xs text-muted">default</span> : null}
-                {!status.isActive ? <span className="text-xs text-danger">inactive</span> : null}
+                {status.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {!status.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 
               {readOnly ? null : (
@@ -203,7 +203,7 @@ export default async function ConfigurationPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Priorities</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Level 1 is the most urgent. SLA targets are set per priority, so changing a level
             changes which target applies.
           </p>
@@ -214,9 +214,9 @@ export default async function ConfigurationPage() {
             <details key={priority.id} className="px-4 py-3">
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <Pill label={priority.name} colour={priority.colour} />
-                <span className="text-muted">level {priority.level}</span>
-                {priority.isDefault ? <span className="text-xs text-muted">default</span> : null}
-                {!priority.isActive ? <span className="text-xs text-danger">inactive</span> : null}
+                <span className="text-muted-foreground">level {priority.level}</span>
+                {priority.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {!priority.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 
               {readOnly ? null : (
@@ -296,7 +296,7 @@ export default async function ConfigurationPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Ticket types</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             The <em>kind</em> is the fixed ITIL-ish meaning; the name is yours.
           </p>
         </div>
@@ -306,9 +306,9 @@ export default async function ConfigurationPage() {
             <details key={type.id} className="px-4 py-3">
               <summary className="flex cursor-pointer flex-wrap items-center gap-3 text-sm">
                 <span className="font-medium">{type.name}</span>
-                <span className="text-muted">{type.kind}</span>
-                {type.isDefault ? <span className="text-xs text-muted">default</span> : null}
-                {!type.isActive ? <span className="text-xs text-danger">inactive</span> : null}
+                <span className="text-muted-foreground">{type.kind}</span>
+                {type.isDefault ? <span className="text-xs text-muted-foreground">default</span> : null}
+                {!type.isActive ? <span className="text-xs text-destructive">inactive</span> : null}
               </summary>
 
               {readOnly ? null : (
@@ -388,7 +388,7 @@ export default async function ConfigurationPage() {
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold">Categories and subcategories</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Deactivate rather than delete: historical tickets still reference these.
           </p>
         </div>
@@ -400,10 +400,10 @@ export default async function ConfigurationPage() {
                 <h3 className="text-sm font-semibold">
                   {category.name}
                   {!category.isActive ? (
-                    <span className="ml-2 text-xs text-danger">inactive</span>
+                    <span className="ml-2 text-xs text-destructive">inactive</span>
                   ) : null}
                 </h3>
-                <span className="text-xs text-muted">
+                <span className="text-xs text-muted-foreground">
                   {category.subCategories.length} subcategor
                   {category.subCategories.length === 1 ? 'y' : 'ies'}
                 </span>
@@ -414,7 +414,7 @@ export default async function ConfigurationPage() {
                   <li
                     key={subCategory.id}
                     className={`rounded-full border px-2 py-0.5 text-xs ${
-                      subCategory.isActive ? ' text-foreground' : ' text-danger'
+                      subCategory.isActive ? ' text-foreground' : ' text-destructive'
                     }`}
                   >
                     {subCategory.name}

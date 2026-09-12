@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import type { ActionResult } from '@/server/actions/result';
 import { FormMessage } from '@/components/ui/form-message';
 
@@ -12,6 +13,10 @@ import { FormMessage } from '@/components/ui/form-message';
  * plain inputs carry no event handlers -- only the state plumbing needs to be a
  * client component. Field-level errors are listed above the form rather than
  * threaded into each input, which keeps one component usable for every entity.
+ *
+ * Success is a toast, not inline text: the form may be one of twenty on an
+ * admin page, and a message that appears next to the button you just pressed
+ * is easy to miss when the row re-renders.
  */
 export function ActionForm<T>({
   action,
@@ -42,10 +47,12 @@ export function ActionForm<T>({
   const router = useRouter();
 
   useEffect(() => {
-    if (!state?.ok || !redirectTo) return;
+    if (!state?.ok) return;
+    toast.success(successMessage);
+    if (!redirectTo) return;
     const id = (state.data as { id?: string } | undefined)?.id;
     router.push(id ? redirectTo.replace(':id', id) : redirectTo);
-  }, [state, redirectTo, router]);
+  }, [state, redirectTo, router, successMessage]);
 
   const fieldErrors = state && !state.ok ? state.fieldErrors : undefined;
 
@@ -54,7 +61,7 @@ export function ActionForm<T>({
       <FormMessage result={state} />
 
       {fieldErrors ? (
-        <ul className="list-inside list-disc rounded-md bg-danger-subtle px-3 py-2 text-xs text-danger">
+        <ul className="list-inside list-disc rounded-md bg-destructive-subtle px-3 py-2 text-xs text-destructive">
           {Object.entries(fieldErrors).map(([field, messages]) => (
             <li key={field}>
               <span className="font-medium">{field === '_form' ? 'Form' : field}</span>:{' '}
@@ -74,7 +81,6 @@ export function ActionForm<T>({
         >
           {pending ? 'Saving…' : submitLabel}
         </button>
-        {state?.ok ? <span className="text-xs text-success">{successMessage}</span> : null}
       </div>
     </form>
   );

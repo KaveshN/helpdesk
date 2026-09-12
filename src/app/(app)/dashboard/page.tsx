@@ -29,11 +29,10 @@ function Breakdown({
           <div className="min-w-0">
             <div className="flex items-center justify-between gap-2">
               <Pill label={row.name} colour={row.colour} />
-              <span className="tabular text-muted">{row.count}</span>
+              <span className="tabular text-muted-foreground">{row.count}</span>
             </div>
             <div
-              className="mt-1.5 h-1 w-full overflow-hidden rounded-full"
-              style={{ background: 'var(--subtle)' }}
+              className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted"
               aria-hidden
             >
               <div
@@ -97,10 +96,10 @@ export default async function DashboardPage() {
               label="Overdue"
               value={summary.tiles.overdue}
               href="/tickets?view=overdue"
-              tone={summary.tiles.overdue > 0 ? 'danger' : 'neutral'}
+              tone={summary.tiles.overdue > 0 ? 'destructive' : 'neutral'}
               hint={summary.tiles.overdue === 0 ? 'SLA dates land in Phase 2' : undefined}
             />
-            <StatTile label="Resolved today" value={summary.tiles.resolvedToday} tone="good" />
+            <StatTile label="Resolved today" value={summary.tiles.resolvedToday} tone="success" />
           </div>
         </section>
 
@@ -109,7 +108,7 @@ export default async function DashboardPage() {
           <section className="card overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
               <h2 className="panel-title">Open tickets</h2>
-              <Link href="/tickets" className="link text-[0.8125rem] text-muted">
+              <Link href="/tickets" className="link text-sm text-muted-foreground">
                 View all
               </Link>
             </div>
@@ -157,7 +156,7 @@ export default async function DashboardPage() {
                         <td className="hidden md:table-cell">
                           <Pill label={ticket.priority.name} colour={ticket.priority.colour} />
                         </td>
-                        <td className="hidden text-muted lg:table-cell">
+                        <td className="hidden text-muted-foreground lg:table-cell">
                           {ticket.assignee?.name ?? (
                             <span style={{ color: 'var(--warning)' }}>Unassigned</span>
                           )}

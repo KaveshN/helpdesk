@@ -91,12 +91,12 @@ export default async function ReportsPage({
                 aria-current={active ? 'page' : undefined}
                 className={`block rounded-md border px-3 py-2 text-sm ${
                   active
-                    ? 'border-slate-900 bg-card text-white'
-                    : ' bg-card text-foreground hover:bg-subtle'
+                    ? 'border-primary bg-primary-subtle text-foreground'
+                    : ' bg-card text-foreground hover:bg-muted'
                 }`}
               >
                 <span className="font-medium">{entry.title}</span>
-                <span className={`mt-0.5 block text-xs ${active ? 'text-faint' : 'text-muted'}`}>
+                <span className={`mt-0.5 block text-xs ${active ? 'text-faint' : 'text-muted-foreground'}`}>
                   {entry.description}
                 </span>
               </Link>
@@ -150,12 +150,12 @@ export default async function ReportsPage({
 
           <section>
             <h2 className="text-base font-semibold">{report.title}</h2>
-            <p className="mt-1 mb-3 text-sm text-muted">{report.description}</p>
+            <p className="mt-1 mb-3 text-sm text-muted-foreground">{report.description}</p>
             <ReportTable report={report} />
           </section>
 
           {can(actor, 'report:manage', group.helpDeskGroupId) ? (
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               Scheduled delivery of these reports by email is Phase 4&rsquo;s remaining piece: the
               <code className="mx-1">ScheduledReport</code> and{' '}
               <code className="mx-1">ReportRun</code>

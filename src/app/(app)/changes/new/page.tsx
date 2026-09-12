@@ -83,7 +83,7 @@ export default async function NewChangePage({
       {linkedTicket ? (
         <div className="card mb-4 px-4 py-3">
           Citing ticket <span className="font-mono text-xs">{linkedTicket.reference}</span>:{' '}
-          <span className="text-muted">{linkedTicket.subject}</span>
+          <span className="text-muted-foreground">{linkedTicket.subject}</span>
         </div>
       ) : null}
 
@@ -186,7 +186,7 @@ export default async function NewChangePage({
                     </option>
                   ))}
                 </select>
-                <p className="mt-1.5 text-xs text-muted">
+                <p className="mt-1.5 text-xs text-muted-foreground">
                   A pre-approved type skips the CAB entirely.
                 </p>
               </div>
@@ -264,7 +264,7 @@ export default async function NewChangePage({
                   className="input"
                 />
               </div>
-              <p className="text-xs text-muted">
+              <p className="text-xs text-muted-foreground">
                 High and Critical risk levels enforce a minimum notice period between submission and
                 the planned start.
               </p>
